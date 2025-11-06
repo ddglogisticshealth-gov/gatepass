@@ -58,45 +58,19 @@
                 <input type="text" id="securityOfficer" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border focus:border-blue-500 focus:ring-blue-500" placeholder="Enter full name" required>
             </div>
 
-            <!-- Autofilled QR Data -->
-            <div class="space-y-3">
-                <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
-                    <div class="flex-1">
-                        <label for="vehicleId" class="block text-sm font-medium text-gray-700">Vehicle ID</label>
-                        <input type="text" id="vehicleId" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
-                    </div>
-                    <div class="flex-1">
-                        <label for="licensePlate" class="block text-sm font-medium text-gray-700">License Plate</label>
-                        <input type="text" id="licensePlate" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
-                    </div>
-                </div>
-                <div>
-                    <label for="driverName" class="block text-sm font-medium text-gray-700">Driver Name</label>
-                    <input type="text" id="driverName" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
-                </div>
-            </div>
-
-            <!-- Auto-timestamp Fields (Display Only) -->
-            <div class="space-y-3">
-                <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
-                    <div class="flex-1">
-                        <label for="inTimeDisplay" class="block text-sm font-medium text-gray-700">Auto In Time</label>
-                        <input type="text" id="inTimeDisplay" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
-                    </div>
-                    <div class="flex-1">
-                        <label for="outTimeDisplay" class="block text-sm font-medium text-gray-700">Auto Out Time</label>
-                        <input type="text" id="outTimeDisplay" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
-                    </div>
-                </div>
+            <!-- Vehicle ID Field Only -->
+            <div>
+                <label for="vehicleId" class="block text-sm font-medium text-gray-700">Vehicle ID</label>
+                <input type="text" id="vehicleId" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
             </div>
 
             <!-- Action Buttons -->
             <div class="flex gap-4 pt-4">
                 <button id="checkInBtn" class="flex-1 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
-                    <i class="fas fa-arrow-down mr-2"></i> CHECK-IN (IN TIME)
+                    <i class="fas fa-arrow-down mr-2"></i> CHECK-IN
                 </button>
                 <button id="checkOutBtn" class="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
-                    <i class="fas fa-arrow-up mr-2"></i> CHECK-OUT (OUT TIME)
+                    <i class="fas fa-arrow-up mr-2"></i> CHECK-OUT
                 </button>
             </div>
             <button id="resetBtn" class="w-full py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg mt-2 transition duration-150 ease-in-out">
@@ -185,10 +159,6 @@
         function resetForm() {
             qrData = {};
             document.getElementById('vehicleId').value = '';
-            document.getElementById('licensePlate').value = '';
-            document.getElementById('driverName').value = '';
-            document.getElementById('inTimeDisplay').value = '';
-            document.getElementById('outTimeDisplay').value = '';
             
             document.getElementById('checkInBtn').disabled = true;
             document.getElementById('checkOutBtn').disabled = true;
@@ -199,7 +169,7 @@
 
         /**
          * Parses QR code data and autofills the form fields.
-         * Assumes data format: VehicleID|LicensePlate|DriverName
+         * Assumes data format: VehicleID
          * @param {string} decodedText - The content read from the QR code.
          */
         function processScan(decodedText) {
@@ -211,21 +181,13 @@
                     console.error("Error stopping scanner:", err);
                 });
 
-                const parts = decodedText.split('|').map(p => p.trim());
-                if (parts.length < 3) {
-                    throw new Error("QR code data is not in the expected 'ID|Plate|Driver' format.");
-                }
-
+                // Use the entire decoded text as the vehicle ID
                 qrData = {
-                    vehicleId: parts[0],
-                    licensePlate: parts[1],
-                    driverName: parts[2]
+                    vehicleId: decodedText.trim()
                 };
 
-                // Autofill display fields
+                // Autofill display field
                 document.getElementById('vehicleId').value = qrData.vehicleId;
-                document.getElementById('licensePlate').value = qrData.licensePlate;
-                document.getElementById('driverName').value = qrData.driverName;
 
                 // Enable action buttons
                 document.getElementById('checkInBtn').disabled = false;
@@ -266,8 +228,6 @@
                 action: 'logMovement', // This is the function the GAS script will look for
                 officerName: securityOfficer,
                 vehicleId: qrData.vehicleId,
-                licensePlate: qrData.licensePlate,
-                driverName: qrData.driverName,
                 timestamp: timestamp, // The exact time of the action
                 inTime: type === 'CHECK-IN' ? timestamp : '',
                 outTime: type === 'CHECK-OUT' ? timestamp : ''
@@ -290,17 +250,8 @@
                 });
 
                 // Since we use 'no-cors', we cannot read the response, but we assume success if no fetch error occurs.
-                showModal('Success!', `Vehicle ${qrData.vehicleId} (${qrData.licensePlate}) recorded for **${type}** at ${timestamp} by ${securityOfficer}.`, 'success');
+                showModal('Success!', `Vehicle ${qrData.vehicleId} recorded for **${type}** at ${timestamp} by ${securityOfficer}.`, 'success');
                 setStatus(`${type} record submitted successfully! Ready for next scan.`, 'success');
-
-                // Update the display fields after successful submission
-                if (type === 'CHECK-IN') {
-                    document.getElementById('inTimeDisplay').value = timestamp;
-                    document.getElementById('outTimeDisplay').value = ''; // Clear previous out time
-                } else {
-                    document.getElementById('outTimeDisplay').value = timestamp;
-                    document.getElementById('inTimeDisplay').value = ''; // Clear previous in time
-                }
                 
                 // Automatically reset after a short delay for a new entry
                 setTimeout(resetForm, 3000); 
@@ -324,6 +275,20 @@
                 aspectRatio: 1.0,
             };
 
+            // Clear any existing scanner
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    startNewScan(config);
+                }).catch(err => {
+                    console.error("Error stopping existing scanner:", err);
+                    startNewScan(config);
+                });
+            } else {
+                startNewScan(config);
+            }
+        }
+
+        function startNewScan(config) {
             // Use the back camera if available, otherwise the front camera
             html5QrCode.start({ facingMode: "environment" }, config, processScan, (errorMessage) => {
                 // Scan failure/error - does not stop the scanning process
