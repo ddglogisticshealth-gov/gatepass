@@ -37,11 +37,32 @@
     <div class="container-main mx-auto max-w-lg">
         <header class="text-center py-4">
             <h1 class="text-3xl font-extrabold text-gray-800">QR Checkpoint</h1>
-            <p class="text-sm text-gray-500 mt-1">Scan to record vehicle movement automatically.</p>
+            <p class="text-sm text-gray-500 mt-1">Scan or enter vehicle ID to record movement.</p>
         </header>
 
+        <!-- Toggle between Scanner and Manual Entry -->
+        <div class="flex gap-2 mb-4">
+            <button id="scanModeBtn" class="flex-1 py-2 bg-blue-600 text-white font-semibold rounded-lg transition duration-150">
+                <i class="fas fa-camera mr-2"></i>Scan QR
+            </button>
+            <button id="manualModeBtn" class="flex-1 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-150">
+                <i class="fas fa-keyboard mr-2"></i>Manual Entry
+            </button>
+        </div>
+
         <!-- QR Code Scanner Area -->
-        <div id="reader" class="shadow-xl"></div>
+        <div id="readerContainer">
+            <div id="reader" class="shadow-xl"></div>
+        </div>
+
+        <!-- Manual Entry Area -->
+        <div id="manualEntry" class="hidden bg-white p-6 rounded-xl shadow-2xl">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Enter Vehicle ID Manually</h3>
+            <input type="text" id="manualVehicleId" class="w-full rounded-md border-gray-300 shadow-sm p-2.5 border focus:border-blue-500 focus:ring-blue-500" placeholder="Type or paste Vehicle ID">
+            <button id="manualSubmitBtn" class="w-full mt-3 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-150">
+                <i class="fas fa-check mr-2"></i>Use This ID
+            </button>
+        </div>
 
         <!-- Status Message Box -->
         <div id="statusMessage" class="mt-4 p-3 rounded-lg shadow-md bg-blue-100 border border-blue-400 text-blue-800 hidden" role="alert">
@@ -95,6 +116,8 @@
         
         let html5QrCode;
         let qrData = {}; // Object to hold the parsed QR code data
+        let scannerActive = false; // Track if scanner is running
+        let currentMode = 'scan'; // 'scan' or 'manual'
 
         /**
          * Utility function to show the custom modal.
@@ -159,12 +182,17 @@
         function resetForm() {
             qrData = {};
             document.getElementById('vehicleId').value = '';
+            document.getElementById('manualVehicleId').value = '';
             
             document.getElementById('checkInBtn').disabled = true;
             document.getElementById('checkOutBtn').disabled = true;
             
-            setStatus('Ready to scan a new QR code.', 'info');
-            startScanner();
+            if (currentMode === 'scan') {
+                setStatus('Ready to scan a new QR code.', 'info');
+                startScanner();
+            } else {
+                setStatus('Ready to enter vehicle ID manually.', 'info');
+            }
         }
 
         /**
@@ -175,11 +203,8 @@
         function processScan(decodedText) {
             try {
                 // Stop the scanner immediately after a successful read
-                html5QrCode.stop().then(() => {
-                    setStatus('Scan successful! Please proceed with Check-In or Check-Out.', 'success');
-                }).catch(err => {
-                    console.error("Error stopping scanner:", err);
-                });
+                stopScanner();
+                setStatus('Scan successful! Please proceed with Check-In or Check-Out.', 'success');
 
                 // Use the entire decoded text as the vehicle ID
                 qrData = {
@@ -266,38 +291,100 @@
         }
 
         /**
+         * Stops the QR code scanner.
+         */
+        function stopScanner() {
+            if (html5QrCode && scannerActive) {
+                html5QrCode.stop().then(() => {
+                    scannerActive = false;
+                }).catch(err => {
+                    console.error("Error stopping scanner:", err);
+                    scannerActive = false;
+                });
+            }
+        }
+
+        /**
          * Initializes and starts the QR code scanner.
          */
         function startScanner() {
+            if (scannerActive) return;
+            
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
             };
 
-            // Clear any existing scanner
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    startNewScan(config);
-                }).catch(err => {
-                    console.error("Error stopping existing scanner:", err);
-                    startNewScan(config);
-                });
-            } else {
-                startNewScan(config);
-            }
-        }
-
-        function startNewScan(config) {
             // Use the back camera if available, otherwise the front camera
             html5QrCode.start({ facingMode: "environment" }, config, processScan, (errorMessage) => {
                 // Scan failure/error - does not stop the scanning process
                 // console.log(`QR Scan Error: ${errorMessage}`); 
+            }).then(() => {
+                scannerActive = true;
+                setStatus('Camera started. Point to a QR code.', 'info');
             }).catch((err) => {
-                setStatus(`Cannot start camera: ${err.message}. Please check permissions.`, 'error');
-                showModal('Camera Error', `Could not start the camera. Ensure your device has a camera and you have granted permission.`, 'error');
+                scannerActive = false;
+                setStatus(`Cannot start camera: ${err}. Use Manual Entry instead.`, 'error');
+                showModal('Camera Error', `Could not start the camera. Please use Manual Entry mode or check camera permissions.`, 'error');
             });
-            setStatus('Camera started. Point to a QR code.', 'info');
+        }
+
+        /**
+         * Switch to Scan mode
+         */
+        function switchToScanMode() {
+            currentMode = 'scan';
+            document.getElementById('readerContainer').classList.remove('hidden');
+            document.getElementById('manualEntry').classList.add('hidden');
+            document.getElementById('scanModeBtn').classList.remove('bg-gray-300', 'text-gray-700');
+            document.getElementById('scanModeBtn').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('manualModeBtn').classList.remove('bg-blue-600', 'text-white');
+            document.getElementById('manualModeBtn').classList.add('bg-gray-300', 'text-gray-700');
+            
+            resetForm();
+        }
+
+        /**
+         * Switch to Manual Entry mode
+         */
+        function switchToManualMode() {
+            currentMode = 'manual';
+            stopScanner();
+            document.getElementById('readerContainer').classList.add('hidden');
+            document.getElementById('manualEntry').classList.remove('hidden');
+            document.getElementById('manualModeBtn').classList.remove('bg-gray-300', 'text-gray-700');
+            document.getElementById('manualModeBtn').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('scanModeBtn').classList.remove('bg-blue-600', 'text-white');
+            document.getElementById('scanModeBtn').classList.add('bg-gray-300', 'text-gray-700');
+            
+            setStatus('Enter vehicle ID manually and click "Use This ID".', 'info');
+            document.getElementById('manualVehicleId').focus();
+        }
+
+        /**
+         * Process manual vehicle ID entry
+         */
+        function processManualEntry() {
+            const manualId = document.getElementById('manualVehicleId').value.trim();
+            
+            if (!manualId) {
+                showModal('Missing Information', 'Please enter a Vehicle ID.', 'error');
+                return;
+            }
+
+            qrData = {
+                vehicleId: manualId
+            };
+
+            // Autofill display field
+            document.getElementById('vehicleId').value = qrData.vehicleId;
+
+            // Enable action buttons
+            document.getElementById('checkInBtn').disabled = false;
+            document.getElementById('checkOutBtn').disabled = false;
+            
+            setStatus('Vehicle ID entered! Please proceed with Check-In or Check-Out.', 'success');
         }
 
         // --- Event Listeners and Initialization ---
@@ -314,6 +401,20 @@
             document.getElementById('checkOutBtn').addEventListener('click', () => handleSubmit('CHECK-OUT'));
             document.getElementById('resetBtn').addEventListener('click', resetForm);
             document.getElementById('modalCloseBtn').addEventListener('click', hideModal);
+            
+            // Mode switching
+            document.getElementById('scanModeBtn').addEventListener('click', switchToScanMode);
+            document.getElementById('manualModeBtn').addEventListener('click', switchToManualMode);
+            
+            // Manual entry submit
+            document.getElementById('manualSubmitBtn').addEventListener('click', processManualEntry);
+            
+            // Allow Enter key in manual input
+            document.getElementById('manualVehicleId').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    processManualEntry();
+                }
+            });
 
             // Hide the modal when clicking outside
             document.getElementById('customModal').addEventListener('click', function(e) {
