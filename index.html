@@ -23,52 +23,12 @@
             border-radius: 0.5rem;
             overflow: hidden;
             background-color: #000;
-            display: none; /* Hidden by default */
         }
         .container-main {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             padding: 1rem;
-        }
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
-        }
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: #34a853;
-        }
-        input:checked + .slider:before {
-            transform: translateX(26px);
         }
     </style>
 </head>
@@ -77,37 +37,36 @@
     <div class="container-main mx-auto max-w-lg">
         <header class="text-center py-4">
             <h1 class="text-3xl font-extrabold text-gray-800">QR Checkpoint</h1>
-            <p class="text-sm text-gray-500 mt-1">Scan to record vehicle movement automatically.</p>
+            <p class="text-sm text-gray-500 mt-1">Scan or enter vehicle ID to record movement.</p>
         </header>
 
-        <!-- Toggle for Camera/Manual Input -->
-        <div class="flex items-center justify-center mb-4 bg-white p-4 rounded-lg shadow-md">
-            <span class="mr-3 text-gray-700 font-medium">Manual Input</span>
-            <label class="toggle-switch">
-                <input type="checkbox" id="cameraToggle">
-                <span class="slider"></span>
-            </label>
-            <span class="ml-3 text-gray-700 font-medium">Camera Scan</span>
+        <!-- Toggle between Scanner and Manual Entry -->
+        <div class="flex gap-2 mb-4">
+            <button id="scanModeBtn" class="flex-1 py-2 bg-blue-600 text-white font-semibold rounded-lg transition duration-150">
+                <i class="fas fa-camera mr-2"></i>Scan QR
+            </button>
+            <button id="manualModeBtn" class="flex-1 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-150">
+                <i class="fas fa-keyboard mr-2"></i>Manual Entry
+            </button>
         </div>
 
         <!-- QR Code Scanner Area -->
-        <div id="reader" class="shadow-xl"></div>
+        <div id="readerContainer">
+            <div id="reader" class="shadow-xl"></div>
+        </div>
 
-        <!-- Manual Input Section -->
-        <div id="manualInput" class="bg-white p-6 rounded-xl shadow-2xl mt-2 space-y-4 border-t-4 border-blue-500">
-            <h2 class="text-xl font-semibold text-gray-700 border-b pb-2">Manual Vehicle ID Entry</h2>
-            <div>
-                <label for="manualVehicleId" class="block text-sm font-medium text-gray-700">Vehicle ID</label>
-                <input type="text" id="manualVehicleId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border focus:border-blue-500 focus:ring-blue-500" placeholder="Enter Vehicle ID">
-            </div>
-            <button id="useManualDataBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition duration-150 ease-in-out">
-                <i class="fas fa-keyboard mr-2"></i> USE THIS VEHICLE ID
+        <!-- Manual Entry Area -->
+        <div id="manualEntry" class="hidden bg-white p-6 rounded-xl shadow-2xl">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Enter Vehicle ID Manually</h3>
+            <input type="text" id="manualVehicleId" class="w-full rounded-md border-gray-300 shadow-sm p-2.5 border focus:border-blue-500 focus:ring-blue-500" placeholder="Type or paste Vehicle ID">
+            <button id="manualSubmitBtn" class="w-full mt-3 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-150">
+                <i class="fas fa-check mr-2"></i>Use This ID
             </button>
         </div>
 
         <!-- Status Message Box -->
         <div id="statusMessage" class="mt-4 p-3 rounded-lg shadow-md bg-blue-100 border border-blue-400 text-blue-800 hidden" role="alert">
-            Ready to scan or enter Vehicle ID.
+            Waiting for a scan...
         </div>
 
         <!-- Data Display and Submission Form -->
@@ -136,7 +95,7 @@
                 </button>
             </div>
             <button id="resetBtn" class="w-full py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg mt-2 transition duration-150 ease-in-out">
-                Reset Form
+                Reset Scanner
             </button>
         </div>
 
@@ -157,7 +116,8 @@
         
         let html5QrCode;
         let qrData = {}; // Object to hold the parsed QR code data
-        let isCameraActive = false;
+        let scannerActive = false; // Track if scanner is running
+        let currentMode = 'scan'; // 'scan' or 'manual'
 
         /**
          * Utility function to show the custom modal.
@@ -227,64 +187,24 @@
             document.getElementById('checkInBtn').disabled = true;
             document.getElementById('checkOutBtn').disabled = true;
             
-            setStatus('Ready to scan or enter Vehicle ID.', 'info');
-            
-            // Reset to manual input mode
-            document.getElementById('cameraToggle').checked = false;
-            toggleCameraMode(false);
-        }
-
-        /**
-         * Toggles between camera scanning and manual input modes.
-         * @param {boolean} enableCamera - Whether to enable camera mode.
-         */
-        function toggleCameraMode(enableCamera) {
-            const cameraToggle = document.getElementById('cameraToggle');
-            const readerDiv = document.getElementById('reader');
-            const manualInputDiv = document.getElementById('manualInput');
-            
-            if (enableCamera) {
-                // Switch to camera mode
-                readerDiv.style.display = 'block';
-                manualInputDiv.style.display = 'none';
+            if (currentMode === 'scan') {
+                setStatus('Ready to scan a new QR code.', 'info');
                 startScanner();
-                setStatus('Camera started. Point to a QR code.', 'info');
             } else {
-                // Switch to manual mode
-                readerDiv.style.display = 'none';
-                manualInputDiv.style.display = 'block';
-                stopScanner();
-                setStatus('Manual input mode. Enter Vehicle ID below.', 'info');
-            }
-            
-            isCameraActive = enableCamera;
-        }
-
-        /**
-         * Stops the QR code scanner if it's running.
-         */
-        function stopScanner() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    console.log("Scanner stopped successfully.");
-                }).catch(err => {
-                    console.error("Error stopping scanner:", err);
-                });
+                setStatus('Ready to enter vehicle ID manually.', 'info');
             }
         }
 
         /**
-         * Processes scanned QR code data and autofills the form fields.
+         * Parses QR code data and autofills the form fields.
+         * Assumes data format: VehicleID
          * @param {string} decodedText - The content read from the QR code.
          */
         function processScan(decodedText) {
             try {
                 // Stop the scanner immediately after a successful read
-                html5QrCode.stop().then(() => {
-                    setStatus('Scan successful! Please proceed with Check-In or Check-Out.', 'success');
-                }).catch(err => {
-                    console.error("Error stopping scanner:", err);
-                });
+                stopScanner();
+                setStatus('Scan successful! Please proceed with Check-In or Check-Out.', 'success');
 
                 // Use the entire decoded text as the vehicle ID
                 qrData = {
@@ -302,36 +222,8 @@
                 setStatus(`Error processing QR data: ${error.message}`, 'error');
                 showModal('Scan Error', `Could not process the QR code. Details: ${error.message}. Please try scanning a valid code.`, 'error');
                 // Restart scanning after error
-                if (isCameraActive) {
-                    startScanner();
-                }
+                startScanner();
             }
-        }
-
-        /**
-         * Processes manually entered Vehicle ID.
-         */
-        function processManualInput() {
-            const manualVehicleId = document.getElementById('manualVehicleId').value.trim();
-            
-            if (!manualVehicleId) {
-                showModal('Missing Information', 'Please enter a Vehicle ID.', 'error');
-                document.getElementById('manualVehicleId').focus();
-                return;
-            }
-            
-            qrData = {
-                vehicleId: manualVehicleId
-            };
-
-            // Autofill display field
-            document.getElementById('vehicleId').value = qrData.vehicleId;
-
-            // Enable action buttons
-            document.getElementById('checkInBtn').disabled = false;
-            document.getElementById('checkOutBtn').disabled = false;
-            
-            setStatus('Vehicle ID entered successfully! Please proceed with Check-In or Check-Out.', 'success');
         }
 
         /**
@@ -399,40 +291,138 @@
         }
 
         /**
+         * Stops the QR code scanner.
+         */
+        function stopScanner() {
+            if (html5QrCode && scannerActive) {
+                html5QrCode.stop().then(() => {
+                    scannerActive = false;
+                }).catch(err => {
+                    console.error("Error stopping scanner:", err);
+                    scannerActive = false;
+                });
+            }
+        }
+
+        /**
          * Initializes and starts the QR code scanner.
          */
         function startScanner() {
+            if (scannerActive) return;
+            
+            setStatus('Starting camera...', 'info');
+            console.log('Attempting to start camera...');
+            
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
             };
 
-            // Clear any existing scanner
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    startNewScan(config);
-                }).catch(err => {
-                    console.error("Error stopping existing scanner:", err);
-                    startNewScan(config);
-                });
-            } else {
-                startNewScan(config);
-            }
+            // First, check if we can get camera devices
+            Html5Qrcode.getCameras().then(devices => {
+                console.log('Available cameras:', devices);
+                
+                if (devices && devices.length > 0) {
+                    // Use the back camera if available, otherwise the first camera
+                    html5QrCode.start(
+                        { facingMode: "environment" }, 
+                        config, 
+                        processScan, 
+                        (errorMessage) => {
+                            // Scan failure/error - does not stop the scanning process
+                            // console.log(`QR Scan Error: ${errorMessage}`); 
+                        }
+                    ).then(() => {
+                        scannerActive = true;
+                        setStatus('✓ Camera started successfully! Point at QR code.', 'success');
+                        console.log('Camera started successfully');
+                    }).catch((err) => {
+                        scannerActive = false;
+                        console.error('Camera start failed:', err);
+                        setStatus(`Camera Error: ${err.message || err}`, 'error');
+                        showModal('Camera Start Failed', 
+                            `Error: ${err.message || err}\n\n` +
+                            `Possible solutions:\n` +
+                            `1. Grant camera permissions in browser settings\n` +
+                            `2. Use HTTPS (not HTTP or file://)\n` +
+                            `3. Close other apps using the camera\n` +
+                            `4. Try Manual Entry mode instead`, 
+                            'error');
+                    });
+                } else {
+                    console.error('No cameras found');
+                    setStatus('No camera detected on this device.', 'error');
+                    showModal('No Camera Found', 'No camera devices were detected. Please use Manual Entry mode.', 'error');
+                }
+            }).catch(err => {
+                console.error('Camera detection failed:', err);
+                setStatus(`Permission Error: ${err.message || err}`, 'error');
+                showModal('Camera Permission Error', 
+                    `Cannot access camera: ${err.message || err}\n\n` +
+                    `Make sure you:\n` +
+                    `1. Allowed camera permissions\n` +
+                    `2. Are using HTTPS (not file:// or http://)\n` +
+                    `3. Use Manual Entry mode as alternative`, 
+                    'error');
+            });
         }
 
-        function startNewScan(config) {
-            // Use the back camera if available, otherwise the front camera
-            html5QrCode.start({ facingMode: "environment" }, config, processScan, (errorMessage) => {
-                // Scan failure/error - does not stop the scanning process
-                // console.log(`QR Scan Error: ${errorMessage}`); 
-            }).catch((err) => {
-                setStatus(`Cannot start camera: ${err.message}. Please check permissions.`, 'error');
-                showModal('Camera Error', `Could not start the camera. Ensure your device has a camera and you have granted permission.`, 'error');
-                // Switch back to manual mode if camera fails
-                document.getElementById('cameraToggle').checked = false;
-                toggleCameraMode(false);
-            });
+        /**
+         * Switch to Scan mode
+         */
+        function switchToScanMode() {
+            currentMode = 'scan';
+            document.getElementById('readerContainer').classList.remove('hidden');
+            document.getElementById('manualEntry').classList.add('hidden');
+            document.getElementById('scanModeBtn').classList.remove('bg-gray-300', 'text-gray-700');
+            document.getElementById('scanModeBtn').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('manualModeBtn').classList.remove('bg-blue-600', 'text-white');
+            document.getElementById('manualModeBtn').classList.add('bg-gray-300', 'text-gray-700');
+            
+            resetForm();
+        }
+
+        /**
+         * Switch to Manual Entry mode
+         */
+        function switchToManualMode() {
+            currentMode = 'manual';
+            stopScanner();
+            document.getElementById('readerContainer').classList.add('hidden');
+            document.getElementById('manualEntry').classList.remove('hidden');
+            document.getElementById('manualModeBtn').classList.remove('bg-gray-300', 'text-gray-700');
+            document.getElementById('manualModeBtn').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('scanModeBtn').classList.remove('bg-blue-600', 'text-white');
+            document.getElementById('scanModeBtn').classList.add('bg-gray-300', 'text-gray-700');
+            
+            setStatus('Enter vehicle ID manually and click "Use This ID".', 'info');
+            document.getElementById('manualVehicleId').focus();
+        }
+
+        /**
+         * Process manual vehicle ID entry
+         */
+        function processManualEntry() {
+            const manualId = document.getElementById('manualVehicleId').value.trim();
+            
+            if (!manualId) {
+                showModal('Missing Information', 'Please enter a Vehicle ID.', 'error');
+                return;
+            }
+
+            qrData = {
+                vehicleId: manualId
+            };
+
+            // Autofill display field
+            document.getElementById('vehicleId').value = qrData.vehicleId;
+
+            // Enable action buttons
+            document.getElementById('checkInBtn').disabled = false;
+            document.getElementById('checkOutBtn').disabled = false;
+            
+            setStatus('Vehicle ID entered! Please proceed with Check-In or Check-Out.', 'success');
         }
 
         // --- Event Listeners and Initialization ---
@@ -441,32 +431,33 @@
             // Initialize the QR scanner object
             html5QrCode = new Html5Qrcode("reader");
 
-            // Start in manual input mode by default
-            toggleCameraMode(false);
+            // Start the scanner on page load
+            startScanner();
 
             // Setup button listeners
             document.getElementById('checkInBtn').addEventListener('click', () => handleSubmit('CHECK-IN'));
             document.getElementById('checkOutBtn').addEventListener('click', () => handleSubmit('CHECK-OUT'));
             document.getElementById('resetBtn').addEventListener('click', resetForm);
             document.getElementById('modalCloseBtn').addEventListener('click', hideModal);
-            document.getElementById('useManualDataBtn').addEventListener('click', processManualInput);
-
-            // Camera toggle listener
-            document.getElementById('cameraToggle').addEventListener('change', function() {
-                toggleCameraMode(this.checked);
+            
+            // Mode switching
+            document.getElementById('scanModeBtn').addEventListener('click', switchToScanMode);
+            document.getElementById('manualModeBtn').addEventListener('click', switchToManualMode);
+            
+            // Manual entry submit
+            document.getElementById('manualSubmitBtn').addEventListener('click', processManualEntry);
+            
+            // Allow Enter key in manual input
+            document.getElementById('manualVehicleId').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    processManualEntry();
+                }
             });
 
             // Hide the modal when clicking outside
             document.getElementById('customModal').addEventListener('click', function(e) {
                 if (e.target === this) {
                     hideModal();
-                }
-            });
-
-            // Allow Enter key to submit manual vehicle ID
-            document.getElementById('manualVehicleId').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    processManualInput();
                 }
             });
         };
