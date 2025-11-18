@@ -3,465 +3,275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle QR Checkpoint Scanner</title>
-    <!-- Load Tailwind CSS -->
+    <title>Vehicle Booking QR Scanner</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load html5-qrcode library for scanning -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.4/minified/html5-qrcode.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- html5-qrcode library for scanning -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.9/dist/html5-qrcode.min.js"></script>
     <style>
-        /* Custom styles for aesthetic appeal and responsiveness */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7fafc;
+            background-color: #f7f9fb;
         }
-        #reader {
+        /* Custom styling for the scanner box */
+        #qr-reader {
             width: 100%;
             max-width: 400px;
             margin: 0 auto;
-            border: 2px solid #34a853;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            background-color: #000;
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 10px;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         }
-        .container-main {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding: 1rem;
+        .html5-qrcode-element {
+            border-radius: 8px;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="min-h-screen p-4 flex items-start justify-center">
 
-    <div class="container-main mx-auto max-w-lg">
-        <header class="text-center py-4">
-            <h1 class="text-3xl font-extrabold text-gray-800">QR Checkpoint</h1>
-            <p class="text-sm text-gray-500 mt-1">Scan or enter vehicle ID to record movement.</p>
-        </header>
+    <div class="w-full max-w-xl bg-white p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
+        <h1 class="text-3xl font-bold text-center text-blue-700">Vehicle Check-In/Out QR Scanner</h1>
+        <p class="text-center text-gray-500">Scan the QR code to capture booking details and log to Google Sheet.</p>
 
-        <!-- Toggle between Scanner and Manual Entry -->
-        <div class="flex gap-2 mb-4">
-            <button id="scanModeBtn" class="flex-1 py-2 bg-blue-600 text-white font-semibold rounded-lg transition duration-150">
-                <i class="fas fa-camera mr-2"></i>Scan QR
-            </button>
-            <button id="manualModeBtn" class="flex-1 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-150">
-                <i class="fas fa-keyboard mr-2"></i>Manual Entry
-            </button>
+        <!-- QR Reader Area -->
+        <div id="qr-reader-container" class="space-y-4">
+            <h2 class="text-xl font-semibold text-gray-700">1. Scan QR Code</h2>
+            <div id="qr-reader"></div>
+            <p id="qr-reader-status" class="text-center text-sm font-medium text-gray-500">Initializing camera...</p>
         </div>
 
-        <!-- QR Code Scanner Area -->
-        <div id="readerContainer">
-            <div id="reader" class="shadow-xl"></div>
-        </div>
-
-        <!-- Manual Entry Area -->
-        <div id="manualEntry" class="hidden bg-white p-6 rounded-xl shadow-2xl">
-            <h3 class="text-lg font-semibold text-gray-700 mb-4">Enter Vehicle ID Manually</h3>
-            <input type="text" id="manualVehicleId" class="w-full rounded-md border-gray-300 shadow-sm p-2.5 border focus:border-blue-500 focus:ring-blue-500" placeholder="Type or paste Vehicle ID">
-            <button id="manualSubmitBtn" class="w-full mt-3 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-150">
-                <i class="fas fa-check mr-2"></i>Use This ID
-            </button>
-        </div>
-
-        <!-- Status Message Box -->
-        <div id="statusMessage" class="mt-4 p-3 rounded-lg shadow-md bg-blue-100 border border-blue-400 text-blue-800 hidden" role="alert">
-            Waiting for a scan...
-        </div>
-
-        <!-- Data Display and Submission Form -->
-        <div id="dataForm" class="bg-white p-6 rounded-xl shadow-2xl mt-6 space-y-4 border-t-4 border-primary" style="--primary: #34a853;">
-            <h2 class="text-xl font-semibold text-gray-700 border-b pb-2">Movement Details</h2>
-
-            <!-- Security Officer Name Input -->
-            <div>
-                <label for="securityOfficer" class="block text-sm font-medium text-gray-700">Security Officer Name (Required)</label>
-                <input type="text" id="securityOfficer" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border focus:border-blue-500 focus:ring-blue-500" placeholder="Enter full name" required>
+        <!-- Parsed Data Display & Submission Form -->
+        <form id="data-form" class="space-y-4 pt-4 border-t border-gray-200 hidden">
+            <h2 class="text-xl font-semibold text-gray-700">2. Captured Data</h2>
+            
+            <div id="data-fields" class="space-y-3">
+                <!-- Data fields will be injected here -->
             </div>
 
-            <!-- Vehicle ID Field Only -->
-            <div>
-                <label for="vehicleId" class="block text-sm font-medium text-gray-700">Vehicle ID</label>
-                <input type="text" id="vehicleId" class="mt-1 block w-full rounded-md bg-gray-50 border-gray-300 shadow-sm p-2.5 border" readonly>
-            </div>
+            <p id="submission-status" class="text-sm font-medium pt-2 text-center"></p>
 
-            <!-- Action Buttons -->
-            <div class="flex gap-4 pt-4">
-                <button id="checkInBtn" class="flex-1 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
-                    <i class="fas fa-arrow-down mr-2"></i> CHECK-IN
-                </button>
-                <button id="checkOutBtn" class="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
-                    <i class="fas fa-arrow-up mr-2"></i> CHECK-OUT
-                </button>
-            </div>
-            <button id="resetBtn" class="w-full py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg mt-2 transition duration-150 ease-in-out">
-                Reset Scanner
+            <button type="submit" 
+                    id="submit-button"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition duration-150 ease-in-out shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+                Log Check-In/Out
             </button>
-        </div>
-
-        <!-- Custom Modal for Messages (Replacing alert()) -->
-        <div id="customModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
-            <div class="bg-white p-6 rounded-lg shadow-2xl w-11/12 max-w-sm transform scale-95 transition-transform duration-300">
-                <h3 id="modalTitle" class="text-xl font-bold mb-3 text-gray-800"></h3>
-                <p id="modalBody" class="text-gray-600 mb-6"></p>
-                <button id="modalCloseBtn" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold">OK</button>
-            </div>
-        </div>
-
+            <button type="button" 
+                    id="reset-button"
+                    class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-lg transition duration-150 ease-in-out">
+                Scan New QR Code
+            </button>
+        </form>
     </div>
 
     <script>
-        // NOTE: Replace this placeholder with your actual Google Apps Script Web App URL
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwwFDQX6wbPS2aJR6HhklMtB_C9oI3i6XDFoAcGsXlTB6pi1We2_gLkmFB7jUwWKffm/exec"; 
+        // *** IMPORTANT: REPLACE THIS PLACEHOLDER WITH YOUR DEPLOYED GAS WEB APP URL ***
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbytuDZucJNI2yNSKgugazRCrviLRpwGRtXmhEzAYMSry_blcIUDHy4kAXao5l8UcqYr/exec"; 
+
+        const form = document.getElementById('data-form');
+        const dataFieldsContainer = document.getElementById('data-fields');
+        const submissionStatus = document.getElementById('submission-status');
+        const qrReaderStatus = document.getElementById('qr-reader-status');
+        const qrReaderContainer = document.getElementById('qr-reader-container');
+        const resetButton = document.getElementById('reset-button');
+        const submitButton = document.getElementById('submit-button');
         
-        let html5QrCode;
-        let qrData = {}; // Object to hold the parsed QR code data
-        let scannerActive = false; // Track if scanner is running
-        let currentMode = 'scan'; // 'scan' or 'manual'
+        const html5Qrcode = new Html5Qrcode("qr-reader");
+        let currentParsedData = {};
 
-        /**
-         * Utility function to show the custom modal.
-         * @param {string} title - The title of the modal.
-         * @param {string} message - The message body.
-         * @param {string} [type='info'] - The type ('success', 'error', 'info').
-         */
-        function showModal(title, message, type = 'info') {
-            const modal = document.getElementById('customModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalBody = document.getElementById('modalBody');
+        // --- Utility Functions ---
+
+        // Function to create an input field
+        function createInputField(id, label, value) {
+            const div = document.createElement('div');
+            div.className = 'flex flex-col space-y-1';
             
-            modalTitle.textContent = title;
-            modalBody.textContent = message;
+            const labelEl = document.createElement('label');
+            labelEl.htmlFor = id;
+            labelEl.className = 'text-sm font-medium text-gray-700';
+            labelEl.textContent = label;
 
-            // Simple styling based on type
-            let titleColor = 'text-gray-800';
-            if (type === 'success') titleColor = 'text-green-600';
-            if (type === 'error') titleColor = 'text-red-600';
-            modalTitle.className = `text-xl font-bold mb-3 ${titleColor}`;
+            const inputEl = document.createElement('input');
+            inputEl.type = 'text';
+            inputEl.id = id;
+            inputEl.name = id;
+            inputEl.value = value;
+            inputEl.className = 'p-2 border border-gray-300 rounded-md bg-gray-50 focus:ring-blue-500 focus:border-blue-500 transition';
+            inputEl.readOnly = true;
 
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            modal.querySelector('div').classList.remove('scale-95');
-            modal.querySelector('div').classList.add('scale-100');
+            div.appendChild(labelEl);
+            div.appendChild(inputEl);
+            return div;
         }
 
-        /**
-         * Utility function to hide the custom modal.
-         */
-        function hideModal() {
-            const modal = document.getElementById('customModal');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            modal.querySelector('div').classList.remove('scale-100');
-            modal.querySelector('div').classList.add('scale-95');
-        }
-
-        /**
-         * Displays status messages in the dedicated status box.
-         * @param {string} message - The message to display.
-         * @param {string} type - The type ('info', 'success', 'error').
-         */
-        function setStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('statusMessage');
-            statusDiv.textContent = message;
-            statusDiv.classList.remove('hidden', 'bg-blue-100', 'border-blue-400', 'text-blue-800', 
-                                     'bg-green-100', 'border-green-400', 'text-green-800',
-                                     'bg-red-100', 'border-red-400', 'text-red-800');
-
-            if (type === 'info') {
-                statusDiv.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-800');
-            } else if (type === 'success') {
-                statusDiv.classList.add('bg-green-100', 'border-green-400', 'text-green-800');
-            } else if (type === 'error') {
-                statusDiv.classList.add('bg-red-100', 'border-red-400', 'text-red-800');
-            }
-            statusDiv.classList.remove('hidden');
-        }
-
-        /**
-         * Clears all form fields, status, and resets the QR data object.
-         */
-        function resetForm() {
-            qrData = {};
-            document.getElementById('vehicleId').value = '';
-            document.getElementById('manualVehicleId').value = '';
+        // Function to parse the raw QR text
+        function parseQrText(qrText) {
+            const data = {};
+            // Normalize text to handle various line endings and inconsistent spacing
+            const lines = qrText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
             
-            document.getElementById('checkInBtn').disabled = true;
-            document.getElementById('checkOutBtn').disabled = true;
-            
-            if (currentMode === 'scan') {
-                setStatus('Ready to scan a new QR code.', 'info');
-                startScanner();
-            } else {
-                setStatus('Ready to enter vehicle ID manually.', 'info');
-            }
-        }
-
-        /**
-         * Parses QR code data and autofills the form fields.
-         * Assumes data format: VehicleID
-         * @param {string} decodedText - The content read from the QR code.
-         */
-        function processScan(decodedText) {
-            try {
-                // Stop the scanner immediately after a successful read
-                stopScanner();
-                setStatus('Scan successful! Please proceed with Check-In or Check-Out.', 'success');
-
-                // Use the entire decoded text as the vehicle ID
-                qrData = {
-                    vehicleId: decodedText.trim()
-                };
-
-                // Autofill display field
-                document.getElementById('vehicleId').value = qrData.vehicleId;
-
-                // Enable action buttons
-                document.getElementById('checkInBtn').disabled = false;
-                document.getElementById('checkOutBtn').disabled = false;
-                
-            } catch (error) {
-                setStatus(`Error processing QR data: ${error.message}`, 'error');
-                showModal('Scan Error', `Could not process the QR code. Details: ${error.message}. Please try scanning a valid code.`, 'error');
-                // Restart scanning after error
-                startScanner();
-            }
-        }
-
-        /**
-         * Handles the form submission to the Google Apps Script backend.
-         * @param {string} type - The action type ('CHECK-IN' or 'CHECK-OUT').
-         */
-        async function handleSubmit(type) {
-            if (GAS_WEB_APP_URL === "YOUR_GAS_WEB_APP_URL_HERE") {
-                 showModal('Configuration Error', 'Please replace "YOUR_GAS_WEB_APP_URL_HERE" with your actual deployed Google Apps Script URL in the script code.', 'error');
-                 return;
-            }
-
-            const securityOfficer = document.getElementById('securityOfficer').value.trim();
-
-            if (!securityOfficer) {
-                showModal('Missing Information', 'The Security Officer Name field is required before submission.', 'error');
-                document.getElementById('securityOfficer').focus();
-                return;
-            }
-
-            // Get current timestamp
-            const now = new Date();
-            const timestamp = now.toLocaleString();
-            
-            // Prepare data payload
-            const formData = {
-                action: 'logMovement', // This is the function the GAS script will look for
-                officerName: securityOfficer,
-                vehicleId: qrData.vehicleId,
-                timestamp: timestamp, // The exact time of the action
-                inTime: type === 'CHECK-IN' ? timestamp : '',
-                outTime: type === 'CHECK-OUT' ? timestamp : ''
+            // Define expected keys and their regex patterns
+            const patterns = {
+                'booking_reference': /Booking\s*Reference\s*:\s*(.*)/i,
+                'vehicle': /Vehicle\s*:\s*(.*)/i,
+                'password': /Password\s*:\s*(.*)/i,
+                'out_date': /Out\s*date\s*:\s*(.*)/i,
+                'in_date': /In\s*date\s*:\s*(.*)/i,
             };
 
-            // Disable buttons during submission
-            document.getElementById('checkInBtn').disabled = true;
-            document.getElementById('checkOutBtn').disabled = true;
-            setStatus(`Submitting ${type} record...`, 'info');
-
-            try {
-                // Post data to GAS web app
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // Required for GAS post submissions
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams(formData).toString()
-                });
-
-                // Since we use 'no-cors', we cannot read the response, but we assume success if no fetch error occurs.
-                showModal('Success!', `Vehicle ${qrData.vehicleId} recorded for **${type}** at ${timestamp} by ${securityOfficer}.`, 'success');
-                setStatus(`${type} record submitted successfully! Ready for next scan.`, 'success');
-                
-                // Automatically reset after a short delay for a new entry
-                setTimeout(resetForm, 3000); 
-
-            } catch (error) {
-                setStatus(`Submission failed: ${error.message}`, 'error');
-                showModal('Submission Failed', `There was an error communicating with the backend. Please check the GAS URL and network connection.`, 'error');
-                // Re-enable buttons if submission fails
-                document.getElementById('checkInBtn').disabled = false;
-                document.getElementById('checkOutBtn').disabled = false;
-            }
-        }
-
-        /**
-         * Stops the QR code scanner.
-         */
-        function stopScanner() {
-            if (html5QrCode && scannerActive) {
-                html5QrCode.stop().then(() => {
-                    scannerActive = false;
-                }).catch(err => {
-                    console.error("Error stopping scanner:", err);
-                    scannerActive = false;
-                });
-            }
-        }
-
-        /**
-         * Initializes and starts the QR code scanner.
-         */
-        function startScanner() {
-            if (scannerActive) return;
-            
-            setStatus('Starting camera...', 'info');
-            console.log('Attempting to start camera...');
-            
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-            };
-
-            // First, check if we can get camera devices
-            Html5Qrcode.getCameras().then(devices => {
-                console.log('Available cameras:', devices);
-                
-                if (devices && devices.length > 0) {
-                    // Use the back camera if available, otherwise the first camera
-                    html5QrCode.start(
-                        { facingMode: "environment" }, 
-                        config, 
-                        processScan, 
-                        (errorMessage) => {
-                            // Scan failure/error - does not stop the scanning process
-                            // console.log(`QR Scan Error: ${errorMessage}`); 
-                        }
-                    ).then(() => {
-                        scannerActive = true;
-                        setStatus('✓ Camera started successfully! Point at QR code.', 'success');
-                        console.log('Camera started successfully');
-                    }).catch((err) => {
-                        scannerActive = false;
-                        console.error('Camera start failed:', err);
-                        setStatus(`Camera Error: ${err.message || err}`, 'error');
-                        showModal('Camera Start Failed', 
-                            `Error: ${err.message || err}\n\n` +
-                            `Possible solutions:\n` +
-                            `1. Grant camera permissions in browser settings\n` +
-                            `2. Use HTTPS (not HTTP or file://)\n` +
-                            `3. Close other apps using the camera\n` +
-                            `4. Try Manual Entry mode instead`, 
-                            'error');
-                    });
-                } else {
-                    console.error('No cameras found');
-                    setStatus('No camera detected on this device.', 'error');
-                    showModal('No Camera Found', 'No camera devices were detected. Please use Manual Entry mode.', 'error');
+            for (const line of lines) {
+                for (const key in patterns) {
+                    const match = line.match(patterns[key]);
+                    if (match && match[1]) {
+                        data[key] = match[1].trim();
+                        break; // Move to the next line once a key is found
+                    }
                 }
-            }).catch(err => {
-                console.error('Camera detection failed:', err);
-                setStatus(`Permission Error: ${err.message || err}`, 'error');
-                showModal('Camera Permission Error', 
-                    `Cannot access camera: ${err.message || err}\n\n` +
-                    `Make sure you:\n` +
-                    `1. Allowed camera permissions\n` +
-                    `2. Are using HTTPS (not file:// or http://)\n` +
-                    `3. Use Manual Entry mode as alternative`, 
-                    'error');
-            });
-        }
-
-        /**
-         * Switch to Scan mode
-         */
-        function switchToScanMode() {
-            currentMode = 'scan';
-            document.getElementById('readerContainer').classList.remove('hidden');
-            document.getElementById('manualEntry').classList.add('hidden');
-            document.getElementById('scanModeBtn').classList.remove('bg-gray-300', 'text-gray-700');
-            document.getElementById('scanModeBtn').classList.add('bg-blue-600', 'text-white');
-            document.getElementById('manualModeBtn').classList.remove('bg-blue-600', 'text-white');
-            document.getElementById('manualModeBtn').classList.add('bg-gray-300', 'text-gray-700');
-            
-            resetForm();
-        }
-
-        /**
-         * Switch to Manual Entry mode
-         */
-        function switchToManualMode() {
-            currentMode = 'manual';
-            stopScanner();
-            document.getElementById('readerContainer').classList.add('hidden');
-            document.getElementById('manualEntry').classList.remove('hidden');
-            document.getElementById('manualModeBtn').classList.remove('bg-gray-300', 'text-gray-700');
-            document.getElementById('manualModeBtn').classList.add('bg-blue-600', 'text-white');
-            document.getElementById('scanModeBtn').classList.remove('bg-blue-600', 'text-white');
-            document.getElementById('scanModeBtn').classList.add('bg-gray-300', 'text-gray-700');
-            
-            setStatus('Enter vehicle ID manually and click "Use This ID".', 'info');
-            document.getElementById('manualVehicleId').focus();
-        }
-
-        /**
-         * Process manual vehicle ID entry
-         */
-        function processManualEntry() {
-            const manualId = document.getElementById('manualVehicleId').value.trim();
-            
-            if (!manualId) {
-                showModal('Missing Information', 'Please enter a Vehicle ID.', 'error');
-                return;
             }
 
-            qrData = {
-                vehicleId: manualId
-            };
+            // Ensure all fields are present, using a fallback if needed
+            data.booking_reference = data.booking_reference || 'N/A';
+            data.vehicle = data.vehicle || 'N/A';
+            data.password = data.password || 'N/A';
+            data.out_date = data.out_date || 'N/A';
+            data.in_date = data.in_date || 'N/A';
 
-            // Autofill display field
-            document.getElementById('vehicleId').value = qrData.vehicleId;
-
-            // Enable action buttons
-            document.getElementById('checkInBtn').disabled = false;
-            document.getElementById('checkOutBtn').disabled = false;
-            
-            setStatus('Vehicle ID entered! Please proceed with Check-In or Check-Out.', 'success');
+            return data;
         }
 
-        // --- Event Listeners and Initialization ---
+        // --- Scanner Handlers ---
 
-        window.onload = function () {
-            // Initialize the QR scanner object
-            html5QrCode = new Html5Qrcode("reader");
-
-            // Start the scanner on page load
-            startScanner();
-
-            // Setup button listeners
-            document.getElementById('checkInBtn').addEventListener('click', () => handleSubmit('CHECK-IN'));
-            document.getElementById('checkOutBtn').addEventListener('click', () => handleSubmit('CHECK-OUT'));
-            document.getElementById('resetBtn').addEventListener('click', resetForm);
-            document.getElementById('modalCloseBtn').addEventListener('click', hideModal);
+        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+            console.log(`Scan successful: ${decodedText}`);
             
-            // Mode switching
-            document.getElementById('scanModeBtn').addEventListener('click', switchToScanMode);
-            document.getElementById('manualModeBtn').addEventListener('click', switchToManualMode);
-            
-            // Manual entry submit
-            document.getElementById('manualSubmitBtn').addEventListener('click', processManualEntry);
-            
-            // Allow Enter key in manual input
-            document.getElementById('manualVehicleId').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    processManualEntry();
-                }
-            });
+            // 1. Stop the scanner
+            html5Qrcode.stop().then((ignore) => {
+                qrReaderStatus.textContent = "Scan Complete! Review the data below.";
+                qrReaderStatus.className = 'text-center text-sm font-medium text-green-600';
 
-            // Hide the modal when clicking outside
-            document.getElementById('customModal').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    hideModal();
-                }
+                // 2. Parse and display data
+                currentParsedData = parseQrText(decodedText);
+                displayParsedData(currentParsedData);
+
+                // 3. Show the form
+                qrReaderContainer.classList.add('hidden');
+                form.classList.remove('hidden');
+
+            }).catch((err) => {
+                console.error("Failed to stop scanning:", err);
+                qrReaderStatus.textContent = "Scan Complete, but failed to stop camera. Please proceed.";
             });
         };
 
+        const qrCodeErrorCallback = (errorMessage) => {
+            // Keep the status updated, but don't log noise to console
+        };
+
+        function startScanner() {
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                supportedScanTypes: [Html5QrcodeSupportedFormats.QR_CODE]
+            };
+
+            html5Qrcode.start(
+                { facingMode: "environment" }, // Prioritize the rear camera
+                config,
+                qrCodeSuccessCallback,
+                qrCodeErrorCallback
+            )
+            .then(() => {
+                qrReaderStatus.textContent = "Camera ready. Point at a QR Code.";
+                qrReaderStatus.className = 'text-center text-sm font-medium text-blue-500';
+            })
+            .catch(err => {
+                console.error("Unable to start scanning.", err);
+                qrReaderStatus.textContent = "Error: Cannot start camera. Check permissions or try a different device.";
+                qrReaderStatus.className = 'text-center text-sm font-medium text-red-500';
+            });
+        }
+
+        // --- UI & Submission Logic ---
+
+        function displayParsedData(data) {
+            dataFieldsContainer.innerHTML = '';
+            
+            dataFieldsContainer.appendChild(createInputField('booking_reference', 'Booking Reference', data.booking_reference));
+            dataFieldsContainer.appendChild(createInputField('vehicle', 'Vehicle', data.vehicle));
+            dataFieldsContainer.appendChild(createInputField('password', 'Password', data.password));
+            
+            // Use separate fields for dates for clarity
+            dataFieldsContainer.appendChild(createInputField('out_date', 'Out Date', data.out_date));
+            dataFieldsContainer.appendChild(createInputField('in_date', 'In Date', data.in_date));
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (GAS_WEB_APP_URL === "YOUR_GAS_WEB_APP_URL_HERE") {
+                submissionStatus.textContent = "ERROR: Please update the GAS_WEB_APP_URL in the code first!";
+                submissionStatus.className = 'text-sm font-bold text-red-600';
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Logging... Please wait.';
+            submissionStatus.textContent = '';
+            submissionStatus.className = '';
+
+            try {
+                // Prepare data for GAS (using the parsed object)
+                const payload = {
+                    ...currentParsedData,
+                    timestamp: new Date().toISOString()
+                };
+
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'cors', // Important for GAS
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'SUCCESS') {
+                    submissionStatus.textContent = `Success! Logged at ${new Date().toLocaleTimeString()}. Response: ${result.message}`;
+                    submissionStatus.className = 'text-sm font-bold text-green-600';
+                    submitButton.textContent = 'Logged Successfully!';
+                    // Optionally disable the submit button until a new scan is made
+                } else {
+                    throw new Error(result.message || 'Unknown error from server.');
+                }
+
+            } catch (error) {
+                console.error('Submission error:', error);
+                submissionStatus.textContent = `Error logging data: ${error.message}. Check browser console and GAS logs.`;
+                submissionStatus.className = 'text-sm font-bold text-red-600';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Log Check-In/Out';
+            }
+        });
+        
+        // Reset button handler
+        resetButton.addEventListener('click', () => {
+            currentParsedData = {};
+            dataFieldsContainer.innerHTML = '';
+            submissionStatus.textContent = '';
+            form.classList.add('hidden');
+            submitButton.disabled = false;
+            submitButton.textContent = 'Log Check-In/Out';
+            qrReaderContainer.classList.remove('hidden');
+            startScanner();
+        });
+
+        // Initialize scanner on page load
+        window.addEventListener('load', startScanner);
     </script>
 </body>
 </html>
