@@ -4,274 +4,163 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Booking QR Scanner</title>
-    <!-- Tailwind CSS CDN -->
+
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter Font -->
+
+    <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- html5-qrcode library for scanning -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.9/dist/html5-qrcode.min.js"></script>
+
+    <!-- html5-qrcode -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fb;
         }
-        /* Custom styling for the scanner box */
         #qr-reader {
             width: 100%;
             max-width: 400px;
-            margin: 0 auto;
+            margin: auto;
             border: 2px solid #3b82f6;
             border-radius: 12px;
             padding: 10px;
             background: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-        }
-        .html5-qrcode-element {
-            border-radius: 8px;
         }
     </style>
 </head>
+
 <body class="min-h-screen p-4 flex items-start justify-center">
 
-    <div class="w-full max-w-xl bg-white p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
-        <h1 class="text-3xl font-bold text-center text-blue-700">Vehicle Check-In/Out QR Scanner</h1>
-        <p class="text-center text-gray-500">Scan the QR code to capture booking details and log to Google Sheet.</p>
+    <div class="w-full max-w-xl bg-white p-6 md:p-8 rounded-xl shadow-xl space-y-6">
 
-        <!-- QR Reader Area -->
-        <div id="qr-reader-container" class="space-y-4">
-            <h2 class="text-xl font-semibold text-gray-700">1. Scan QR Code</h2>
+        <h1 class="text-3xl font-bold text-center text-blue-700">Vehicle Check-In/Out QR Scanner</h1>
+        <p class="text-center text-gray-500">Scan the QR code to capture booking details.</p>
+
+        <!-- Scanner -->
+        <div id="qr-reader-container">
             <div id="qr-reader"></div>
-            <p id="qr-reader-status" class="text-center text-sm font-medium text-gray-500">Initializing camera...</p>
+            <p id="qr-reader-status" class="text-center text-sm text-blue-600 mt-2">Initializing camera...</p>
         </div>
 
-        <!-- Parsed Data Display & Submission Form -->
-        <form id="data-form" class="space-y-4 pt-4 border-t border-gray-200 hidden">
-            <h2 class="text-xl font-semibold text-gray-700">2. Captured Data</h2>
-            
-            <div id="data-fields" class="space-y-3">
-                <!-- Data fields will be injected here -->
-            </div>
+        <!-- Parsed Data -->
+        <form id="data-form" class="space-y-4 pt-4 border-t hidden">
 
-            <p id="submission-status" class="text-sm font-medium pt-2 text-center"></p>
+            <h2 class="text-xl font-semibold text-gray-700">Captured Data</h2>
+            <div id="data-fields" class="space-y-3"></div>
 
-            <button type="submit" 
-                    id="submit-button"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition duration-150 ease-in-out shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+            <p id="submission-status" class="text-sm text-center mt-2"></p>
+
+            <button id="submit-button" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">
                 Log Check-In/Out
             </button>
-            <button type="button" 
-                    id="reset-button"
-                    class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-lg transition duration-150 ease-in-out">
+
+            <button type="button" id="reset-button"
+                class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-lg">
                 Scan New QR Code
             </button>
         </form>
     </div>
 
-    <script>
-        // *** IMPORTANT: REPLACE THIS PLACEHOLDER WITH YOUR DEPLOYED GAS WEB APP URL ***
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbytuDZucJNI2yNSKgugazRCrviLRpwGRtXmhEzAYMSry_blcIUDHy4kAXao5l8UcqYr/exec"; 
+<script>
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbytuDZucJNI2yNSKgugazRCrviLRpwGRtXmhEzAYMSry_blcIUDHy4kAXao5l8UcqYr/exec";
 
-        const form = document.getElementById('data-form');
-        const dataFieldsContainer = document.getElementById('data-fields');
-        const submissionStatus = document.getElementById('submission-status');
-        const qrReaderStatus = document.getElementById('qr-reader-status');
-        const qrReaderContainer = document.getElementById('qr-reader-container');
-        const resetButton = document.getElementById('reset-button');
-        const submitButton = document.getElementById('submit-button');
-        
-        const html5Qrcode = new Html5Qrcode("qr-reader");
-        let currentParsedData = {};
+    const form = document.getElementById('data-form');
+    const dataFieldsContainer = document.getElementById('data-fields');
+    const qrReaderStatus = document.getElementById('qr-reader-status');
+    const resetButton = document.getElementById('reset-button');
+    const submitButton = document.getElementById('submit-button');
 
-        // --- Utility Functions ---
+    let html5Qr;
+    let currentData = {};
 
-        // Function to create an input field
-        function createInputField(id, label, value) {
-            const div = document.createElement('div');
-            div.className = 'flex flex-col space-y-1';
-            
-            const labelEl = document.createElement('label');
-            labelEl.htmlFor = id;
-            labelEl.className = 'text-sm font-medium text-gray-700';
-            labelEl.textContent = label;
+    function parseQrText(text) {
+        const lines = text.split("\n").map(l => l.trim()).filter(l => l);
+        const pattern = {
+            booking_reference: /Booking\s*Reference\s*:\s*(.*)/i,
+            vehicle: /Vehicle\s*:\s*(.*)/i,
+            password: /Password\s*:\s*(.*)/i,
+            out_date: /Out\s*date\s*:\s*(.*)/i,
+            in_date: /In\s*date\s*:\s*(.*)/i,
+        };
 
-            const inputEl = document.createElement('input');
-            inputEl.type = 'text';
-            inputEl.id = id;
-            inputEl.name = id;
-            inputEl.value = value;
-            inputEl.className = 'p-2 border border-gray-300 rounded-md bg-gray-50 focus:ring-blue-500 focus:border-blue-500 transition';
-            inputEl.readOnly = true;
-
-            div.appendChild(labelEl);
-            div.appendChild(inputEl);
-            return div;
-        }
-
-        // Function to parse the raw QR text
-        function parseQrText(qrText) {
-            const data = {};
-            // Normalize text to handle various line endings and inconsistent spacing
-            const lines = qrText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-            
-            // Define expected keys and their regex patterns
-            const patterns = {
-                'booking_reference': /Booking\s*Reference\s*:\s*(.*)/i,
-                'vehicle': /Vehicle\s*:\s*(.*)/i,
-                'password': /Password\s*:\s*(.*)/i,
-                'out_date': /Out\s*date\s*:\s*(.*)/i,
-                'in_date': /In\s*date\s*:\s*(.*)/i,
-            };
-
-            for (const line of lines) {
-                for (const key in patterns) {
-                    const match = line.match(patterns[key]);
-                    if (match && match[1]) {
-                        data[key] = match[1].trim();
-                        break; // Move to the next line once a key is found
-                    }
-                }
+        const obj = {};
+        for (const line of lines) {
+            for (const key in pattern) {
+                const match = line.match(pattern[key]);
+                if (match) obj[key] = match[1].trim();
             }
-
-            // Ensure all fields are present, using a fallback if needed
-            data.booking_reference = data.booking_reference || 'N/A';
-            data.vehicle = data.vehicle || 'N/A';
-            data.password = data.password || 'N/A';
-            data.out_date = data.out_date || 'N/A';
-            data.in_date = data.in_date || 'N/A';
-
-            return data;
         }
 
-        // --- Scanner Handlers ---
+        return {
+            booking_reference: obj.booking_reference || 'N/A',
+            vehicle: obj.vehicle || 'N/A',
+            password: obj.password || 'N/A',
+            out_date: obj.out_date || 'N/A',
+            in_date: obj.in_date || 'N/A'
+        };
+    }
 
-        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            console.log(`Scan successful: ${decodedText}`);
-            
-            // 1. Stop the scanner
-            html5Qrcode.stop().then((ignore) => {
-                qrReaderStatus.textContent = "Scan Complete! Review the data below.";
-                qrReaderStatus.className = 'text-center text-sm font-medium text-green-600';
+    function createField(label, value) {
+        const div = document.createElement("div");
+        div.innerHTML = `
+            <label class="text-sm font-medium text-gray-700">${label}</label>
+            <input class="p-2 border rounded bg-gray-50 w-full" value="${value}" readonly />
+        `;
+        return div;
+    }
 
-                // 2. Parse and display data
-                currentParsedData = parseQrText(decodedText);
-                displayParsedData(currentParsedData);
+    function displayData(data) {
+        dataFieldsContainer.innerHTML = "";
+        for (const key in data) {
+            const label = key.replace(/_/g, " ").toUpperCase();
+            dataFieldsContainer.appendChild(createField(label, data[key]));
+        }
+    }
 
-                // 3. Show the form
-                qrReaderContainer.classList.add('hidden');
-                form.classList.remove('hidden');
+    async function startCamera() {
+        html5Qr = new Html5Qrcode("qr-reader");
 
-            }).catch((err) => {
-                console.error("Failed to stop scanning:", err);
-                qrReaderStatus.textContent = "Scan Complete, but failed to stop camera. Please proceed.";
-            });
+        const config = {
+            fps: 10,
+            qrbox: { width: 300, height: 300 },
+            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
         };
 
-        const qrCodeErrorCallback = (errorMessage) => {
-            // Keep the status updated, but don't log noise to console
-        };
+        qrReaderStatus.textContent = "Starting camera...";
 
-        function startScanner() {
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                supportedScanTypes: [Html5QrcodeSupportedFormats.QR_CODE]
-            };
-
-            html5Qrcode.start(
-                { facingMode: "environment" }, // Prioritize the rear camera
+        try {
+            await html5Qr.start(
+                { facingMode: "environment" },
                 config,
-                qrCodeSuccessCallback,
-                qrCodeErrorCallback
-            )
-            .then(() => {
-                qrReaderStatus.textContent = "Camera ready. Point at a QR Code.";
-                qrReaderStatus.className = 'text-center text-sm font-medium text-blue-500';
-            })
-            .catch(err => {
-                console.error("Unable to start scanning.", err);
-                qrReaderStatus.textContent = "Error: Cannot start camera. Check permissions or try a different device.";
-                qrReaderStatus.className = 'text-center text-sm font-medium text-red-500';
-            });
+                (decodedText) => {
+                    html5Qr.stop();
+                    currentData = parseQrText(decodedText);
+                    displayData(currentData);
+                    document.getElementById("qr-reader-container").classList.add("hidden");
+                    form.classList.remove("hidden");
+                },
+                () => {}
+            );
+
+            qrReaderStatus.textContent = "Camera ready. Scan the QR.";
+        } catch (err) {
+            console.error(err);
+            qrReaderStatus.textContent = "Camera Error: Permission denied or no camera.";
+            qrReaderStatus.classList.add("text-red-600");
         }
+    }
 
-        // --- UI & Submission Logic ---
+    resetButton.onclick = () => {
+        form.classList.add("hidden");
+        currentData = {};
+        document.getElementById("qr-reader-container").classList.remove("hidden");
+        startCamera();
+    };
 
-        function displayParsedData(data) {
-            dataFieldsContainer.innerHTML = '';
-            
-            dataFieldsContainer.appendChild(createInputField('booking_reference', 'Booking Reference', data.booking_reference));
-            dataFieldsContainer.appendChild(createInputField('vehicle', 'Vehicle', data.vehicle));
-            dataFieldsContainer.appendChild(createInputField('password', 'Password', data.password));
-            
-            // Use separate fields for dates for clarity
-            dataFieldsContainer.appendChild(createInputField('out_date', 'Out Date', data.out_date));
-            dataFieldsContainer.appendChild(createInputField('in_date', 'In Date', data.in_date));
-        }
+    window.onload = startCamera;
+</script>
 
-        // Handle form submission
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            if (GAS_WEB_APP_URL === "YOUR_GAS_WEB_APP_URL_HERE") {
-                submissionStatus.textContent = "ERROR: Please update the GAS_WEB_APP_URL in the code first!";
-                submissionStatus.className = 'text-sm font-bold text-red-600';
-                return;
-            }
-
-            submitButton.disabled = true;
-            submitButton.textContent = 'Logging... Please wait.';
-            submissionStatus.textContent = '';
-            submissionStatus.className = '';
-
-            try {
-                // Prepare data for GAS (using the parsed object)
-                const payload = {
-                    ...currentParsedData,
-                    timestamp: new Date().toISOString()
-                };
-
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'cors', // Important for GAS
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.status === 'SUCCESS') {
-                    submissionStatus.textContent = `Success! Logged at ${new Date().toLocaleTimeString()}. Response: ${result.message}`;
-                    submissionStatus.className = 'text-sm font-bold text-green-600';
-                    submitButton.textContent = 'Logged Successfully!';
-                    // Optionally disable the submit button until a new scan is made
-                } else {
-                    throw new Error(result.message || 'Unknown error from server.');
-                }
-
-            } catch (error) {
-                console.error('Submission error:', error);
-                submissionStatus.textContent = `Error logging data: ${error.message}. Check browser console and GAS logs.`;
-                submissionStatus.className = 'text-sm font-bold text-red-600';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Log Check-In/Out';
-            }
-        });
-        
-        // Reset button handler
-        resetButton.addEventListener('click', () => {
-            currentParsedData = {};
-            dataFieldsContainer.innerHTML = '';
-            submissionStatus.textContent = '';
-            form.classList.add('hidden');
-            submitButton.disabled = false;
-            submitButton.textContent = 'Log Check-In/Out';
-            qrReaderContainer.classList.remove('hidden');
-            startScanner();
-        });
-
-        // Initialize scanner on page load
-        window.addEventListener('load', startScanner);
-    </script>
 </body>
 </html>
