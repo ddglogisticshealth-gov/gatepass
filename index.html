@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Gate - QR Code Verification</title>
+    <title>Security Gate - Entry/Exit Logging</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
-        /* Reuse similar styles from main system */
         :root {
             --primary: #1a73e8;
             --primary-dark: #0d47a1;
@@ -40,7 +39,7 @@
         
         .security-container {
             width: 100%;
-            max-width: 1200px;
+            max-width: 900px;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -72,24 +71,11 @@
             font-size: 16px;
         }
         
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        @media (max-width: 900px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .scanner-section, .details-section {
+        .scanner-section, .log-section {
             background: white;
             border-radius: 16px;
             padding: 25px;
             box-shadow: var(--shadow);
-            height: fit-content;
         }
         
         .section-title {
@@ -112,12 +98,14 @@
             border-radius: 12px;
             overflow: hidden;
             margin-bottom: 20px;
+            min-height: 300px;
         }
         
         .scanner-controls {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
         
         .btn {
@@ -126,7 +114,7 @@
             color: white;
             border: none;
             border-radius: 10px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
@@ -134,9 +122,11 @@
             align-items: center;
             gap: 8px;
             justify-content: center;
+            flex: 1;
+            min-width: 120px;
         }
         
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
         }
@@ -145,16 +135,12 @@
             background: linear-gradient(135deg, var(--secondary) 0%, #2d8c47 100%);
         }
         
-        .btn-success:hover {
-            box-shadow: 0 6px 20px rgba(52, 168, 83, 0.4);
-        }
-        
         .btn-danger {
             background: linear-gradient(135deg, var(--danger) 0%, #d33426 100%);
         }
         
-        .btn-danger:hover {
-            box-shadow: 0 6px 20px rgba(234, 67, 53, 0.4);
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--gray) 0%, #3c4043 100%);
         }
         
         .btn-block {
@@ -162,7 +148,7 @@
         }
         
         .btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
             transform: none !important;
             box-shadow: none !important;
@@ -174,6 +160,7 @@
             border-radius: 10px;
             background: #f8f9fa;
             margin-bottom: 20px;
+            font-weight: 500;
         }
         
         .status-idle {
@@ -200,7 +187,7 @@
             border: 1px solid #ffcdd2;
         }
         
-        .booking-details {
+        .log-display {
             background: white;
             border-radius: 12px;
             padding: 20px;
@@ -209,7 +196,7 @@
             display: none;
         }
         
-        .booking-details.active {
+        .log-display.active {
             display: block;
             animation: slideIn 0.3s ease;
         }
@@ -232,16 +219,21 @@
             border-bottom: 1px solid var(--border);
         }
         
+        .detail-row:last-of-type {
+            border-bottom: none;
+        }
+        
         .detail-label {
             font-weight: 600;
             color: var(--dark);
-            width: 160px;
+            width: 140px;
             flex-shrink: 0;
         }
         
         .detail-value {
             color: var(--gray);
             flex: 1;
+            word-break: break-word;
         }
         
         .verification-status {
@@ -270,12 +262,6 @@
             border: 2px solid var(--warning);
         }
         
-        .status-expired {
-            background: #f5f5f5;
-            color: var(--gray);
-            border: 2px solid var(--border);
-        }
-        
         .time-display {
             background: #f8f9fa;
             padding: 15px;
@@ -288,70 +274,52 @@
             color: var(--primary);
         }
         
-        .scan-history {
-            margin-top: 30px;
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
         }
         
-        .history-title {
-            font-size: 16px;
+        .logs-table th {
+            background: #f1f3f4;
+            padding: 12px;
+            text-align: left;
             font-weight: 600;
-            margin-bottom: 15px;
             color: var(--dark);
+            border-bottom: 2px solid var(--border);
         }
         
-        .history-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px;
-        }
-        
-        .history-item {
-            padding: 10px;
+        .logs-table td {
+            padding: 12px;
             border-bottom: 1px solid var(--border);
-            font-size: 14px;
         }
         
-        .history-item:last-child {
+        .logs-table tr:last-child td {
             border-bottom: none;
         }
         
-        .history-time {
-            color: var(--gray);
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-        
-        .history-details {
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .history-ref {
-            font-weight: 600;
-            color: var(--dark);
-        }
-        
-        .history-status {
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-weight: 600;
-        }
-        
-        .status-entry {
+        .log-entry {
             background: #e8f5e9;
             color: var(--secondary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
         }
         
-        .status-exit {
+        .log-exit {
             background: #e3f2fd;
             color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
         }
         
         .manual-input {
             margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border);
         }
         
         .form-group {
@@ -380,43 +348,23 @@
             box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
         }
         
-        .logout-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            padding: 10px 20px;
+        .camera-selector {
+            margin-bottom: 15px;
+        }
+        
+        .camera-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border);
             border-radius: 8px;
+            font-size: 14px;
+            background: white;
             cursor: pointer;
-            color: white;
-            font-weight: 500;
-            transition: all 0.3s;
-            backdrop-filter: blur(5px);
         }
         
-        .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
-        }
-        
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--primary);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .hidden {
-            display: none !important;
+        .camera-select:focus {
+            outline: none;
+            border-color: var(--primary);
         }
         
         .alert {
@@ -426,6 +374,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            animation: slideIn 0.3s ease;
         }
         
         .alert-success {
@@ -446,1014 +395,1092 @@
             border: 1px solid #ffecb3;
         }
         
-        .camera-selector {
-            margin-bottom: 15px;
+        .alert-info {
+            background: #e3f2fd;
+            color: var(--primary);
+            border: 1px solid #bbdefb;
         }
         
-        .camera-select {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 14px;
+        .hidden {
+            display: none !important;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .logs-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        
+        @media (max-width: 600px) {
+            .scanner-controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+            }
+            
+            .detail-label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            
+            .logs-table {
+                display: block;
+                overflow-x: auto;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Login Screen for Security Officers -->
-    <div id="loginScreen" class="security-container">
+    <div class="security-container">
         <div class="security-header">
             <div class="security-logo">
                 <i class="fas fa-shield-alt"></i>
             </div>
-            <h1 class="security-title">Security Gate Verification System</h1>
-            <p class="security-subtitle">Ministry of Health - Vehicle Booking System</p>
-            
-            <div style="max-width: 400px; margin: 30px auto;">
-                <div class="form-group">
-                    <label class="form-label" for="securityId">Security Officer ID</label>
-                    <input type="text" id="securityId" class="form-control" placeholder="Enter your security ID">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="securityPassword">Password</label>
-                    <input type="password" id="securityPassword" class="form-control" placeholder="Enter your password">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="gateNumber">Gate Number</label>
-                    <select id="gateNumber" class="form-control">
-                        <option value="">Select Gate Number</option>
-                        <option value="GATE-01">Main Gate (GATE-01)</option>
-                        <option value="GATE-02">Service Gate (GATE-02)</option>
-                        <option value="GATE-03">Emergency Gate (GATE-03)</option>
-                        <option value="GATE-04">Staff Gate (GATE-04)</option>
-                    </select>
-                </div>
-                
-                <button id="securityLoginBtn" class="btn btn-block">
-                    <i class="fas fa-sign-in-alt"></i> Login to Security System
-                </button>
-                
-                <div id="loginSpinner" class="spinner mt-20" style="display: none; margin: 20px auto;"></div>
-                <div id="loginMessage" class="mt-20" style="color: var(--danger); text-align: center;"></div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Main Security Interface -->
-    <div id="securityDashboard" class="security-container" style="display: none;">
-        <button id="securityLogout" class="logout-btn">
-            <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
-        
-        <div class="security-header">
-            <div class="security-logo">
-                <i class="fas fa-shield-alt"></i>
-            </div>
-            <h1 class="security-title">Security Gate Verification</h1>
-            <p class="security-subtitle">Gate: <span id="currentGate">GATE-01</span> | Officer: <span id="officerName">Officer Name</span></p>
+            <h1 class="security-title">Security Gate - Entry/Exit Logging</h1>
+            <p class="security-subtitle">Ministry of Health - Vehicle Movement Tracking</p>
             <div class="time-display" id="currentDateTime">Loading...</div>
         </div>
         
-        <div class="main-content">
-            <!-- Scanner Section -->
-            <div class="scanner-section">
-                <h2 class="section-title">
-                    <i class="fas fa-qrcode"></i> QR Code Scanner
-                </h2>
-                
-                <div class="camera-selector">
-                    <select id="cameraSelect" class="camera-select">
-                        <option value="">Select Camera...</option>
-                    </select>
+        <!-- Scanner Section -->
+        <div class="scanner-section">
+            <h2 class="section-title">
+                <i class="fas fa-qrcode"></i> QR Code Scanner
+            </h2>
+            
+            <div class="camera-selector">
+                <select id="cameraSelect" class="camera-select">
+                    <option value="">Loading cameras...</option>
+                </select>
+            </div>
+            
+            <div id="qr-reader"></div>
+            
+            <div class="scanner-controls">
+                <button id="startScanner" class="btn">
+                    <i class="fas fa-play"></i> Start Scanner
+                </button>
+                <button id="stopScanner" class="btn btn-danger" disabled>
+                    <i class="fas fa-stop"></i> Stop Scanner
+                </button>
+                <button id="switchCamera" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Switch Camera
+                </button>
+            </div>
+            
+            <div id="scannerStatus" class="scanner-status status-idle">
+                <i class="fas fa-info-circle"></i> Scanner is idle. Click "Start Scanner" to begin.
+            </div>
+            
+            <div class="manual-input">
+                <h3 class="section-title" style="font-size: 16px;">
+                    <i class="fas fa-keyboard"></i> Manual Entry
+                </h3>
+                <div class="form-group">
+                    <label class="form-label">Vehicle Number</label>
+                    <input type="text" id="vehicleNumber" class="form-control" placeholder="Enter vehicle number (e.g., CAB 1234)">
                 </div>
-                
-                <div id="qr-reader"></div>
-                
+                <div class="form-group">
+                    <label class="form-label">Driver Name</label>
+                    <input type="text" id="driverName" class="form-control" placeholder="Enter driver name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Purpose</label>
+                    <input type="text" id="tripPurpose" class="form-control" placeholder="Enter trip purpose">
+                </div>
                 <div class="scanner-controls">
-                    <button id="startScanner" class="btn">
-                        <i class="fas fa-play"></i> Start Scanner
+                    <button id="manualEntryBtn" class="btn btn-success">
+                        <i class="fas fa-sign-in-alt"></i> Log Entry
                     </button>
-                    <button id="stopScanner" class="btn btn-danger">
-                        <i class="fas fa-stop"></i> Stop Scanner
-                    </button>
-                    <button id="switchCamera" class="btn btn-secondary">
-                        <i class="fas fa-sync-alt"></i> Switch Camera
-                    </button>
-                </div>
-                
-                <div id="scannerStatus" class="scanner-status status-idle">
-                    <i class="fas fa-info-circle"></i> Scanner is idle. Click "Start Scanner" to begin.
-                </div>
-                
-                <div class="manual-input">
-                    <h3 class="section-title" style="font-size: 16px;">
-                        <i class="fas fa-keyboard"></i> Manual Entry
-                    </h3>
-                    <div class="form-group">
-                        <input type="text" id="manualRefInput" class="form-control" placeholder="Enter Booking Reference or Password">
-                    </div>
-                    <button id="manualVerifyBtn" class="btn btn-block">
-                        <i class="fas fa-search"></i> Verify Manually
+                    <button id="manualExitBtn" class="btn btn-primary">
+                        <i class="fas fa-sign-out-alt"></i> Log Exit
                     </button>
                 </div>
             </div>
+        </div>
+        
+        <!-- Current Scan Display -->
+        <div id="logDisplay" class="log-display">
+            <h3 class="section-title" style="font-size: 16px;">
+                <i class="fas fa-info-circle"></i> Current Scan Details
+            </h3>
             
-            <!-- Details Section -->
-            <div class="details-section">
-                <h2 class="section-title">
-                    <i class="fas fa-clipboard-check"></i> Verification Details
-                </h2>
-                
-                <div id="alertMessage" class="alert hidden"></div>
-                
-                <div id="bookingDetails" class="booking-details">
-                    <div class="detail-row">
-                        <div class="detail-label">Booking Reference:</div>
-                        <div class="detail-value" id="detailRef">VBS-2024-001</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Vehicle:</div>
-                        <div class="detail-value" id="detailVehicle">Toyota Hilux - CAB 1234</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Driver:</div>
-                        <div class="detail-value" id="detailDriver">John Smith (0712345678)</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Requester:</div>
-                        <div class="detail-value" id="detailRequester">Dr. Jane Doe, Director Medical Services</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Branch/Section:</div>
-                        <div class="detail-value" id="detailBranch">Medical Services</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Trip Purpose:</div>
-                        <div class="detail-value" id="detailPurpose">Field visit to regional hospital</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Destination:</div>
-                        <div class="detail-value" id="detailDestination">Kandy General Hospital</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Schedule:</div>
-                        <div class="detail-value" id="detailSchedule">Today, 09:00 AM to 05:00 PM</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Status:</div>
-                        <div class="detail-value" id="detailStatus">Approved</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Last Activity:</div>
-                        <div class="detail-value" id="detailLastActivity">Not recorded</div>
-                    </div>
-                    
-                    <div id="verificationStatus" class="verification-status status-pending">
-                        <i class="fas fa-clock"></i> Pending Verification
-                    </div>
-                    
-                    <div class="scanner-controls" style="margin-top: 20px;">
-                        <button id="markEntry" class="btn btn-success">
-                            <i class="fas fa-sign-in-alt"></i> Mark Vehicle Entry
-                        </button>
-                        <button id="markExit" class="btn btn-primary">
-                            <i class="fas fa-sign-out-alt"></i> Mark Vehicle Exit
-                        </button>
-                        <button id="clearScan" class="btn btn-danger">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="scan-history">
-                    <h3 class="history-title">
-                        <i class="fas fa-history"></i> Recent Scans
-                    </h3>
-                    <div class="history-list" id="scanHistoryList">
-                        <!-- Scan history will be populated here -->
-                    </div>
-                </div>
+            <div id="alertMessage" class="alert hidden"></div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Vehicle Number:</div>
+                <div class="detail-value" id="detailVehicle">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Driver:</div>
+                <div class="detail-value" id="detailDriver">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Purpose:</div>
+                <div class="detail-value" id="detailPurpose">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Time:</div>
+                <div class="detail-value" id="detailTime">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Status:</div>
+                <div class="detail-value" id="detailStatus">-</div>
+            </div>
+            
+            <div class="scanner-controls" style="margin-top: 20px;">
+                <button id="confirmEntry" class="btn btn-success">
+                    <i class="fas fa-check-circle"></i> Confirm Entry
+                </button>
+                <button id="confirmExit" class="btn btn-primary">
+                    <i class="fas fa-check-circle"></i> Confirm Exit
+                </button>
+                <button id="clearLog" class="btn btn-danger">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+        
+        <!-- Logs Section -->
+        <div class="log-section">
+            <h2 class="section-title">
+                <i class="fas fa-clipboard-list"></i> Today's Logs
+            </h2>
+            
+            <div class="logs-controls">
+                <button id="refreshLogs" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button id="exportLogs" class="btn export-btn">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                <button id="clearAllLogs" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </div>
+            
+            <table class="logs-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Vehicle</th>
+                        <th>Driver</th>
+                        <th>Type</th>
+                        <th>Gate</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody id="logsList">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--gray);">
+                            No logs yet. Scan a QR code or manually log entry/exit.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 15px; text-align: center; color: var(--gray); font-size: 14px;">
+                <i class="fas fa-info-circle"></i> Logs are stored in your browser's local storage
             </div>
         </div>
     </div>
 
-    <script>
-        // Google Apps Script Web App URL - Same as main system
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwFFgFSGs1-ooRNPXuDl-6nCk4NanfQrt423XEcmcRLPXGI6hIjYe8aJ0yR4nlhPJf7/exec';
+   <script>
+    // Configuration - USER MUST SET THIS
+    let GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwFFgFSGs1-ooRNPXuDl-6nCk4NanfQrt423XEcmcRLPXGI6hIjYe8aJ0yR4nlhPJf7/exec'; // Will be set by user
+    
+    // Security officer accounts
+    const securityAccounts = {
+        'SEC001': { name: 'Officer John Silva', password: 'sec001', gate: 'GATE-01' },
+        'SEC002': { name: 'Officer Jane Perera', password: 'sec002', gate: 'GATE-02' },
+        'SEC003': { name: 'Officer Kamal Fernando', password: 'sec003', gate: 'GATE-03' },
+        'SEC004': { name: 'Officer Nimal Rathnayake', password: 'sec004', gate: 'GATE-04' }
+    };
 
-        // Security officer accounts (for demo - in production, use proper authentication)
-        const securityAccounts = {
-            'SEC001': { name: 'Officer John Silva', password: 'sec001', gate: 'GATE-01' },
-            'SEC002': { name: 'Officer Jane Perera', password: 'sec002', gate: 'GATE-02' },
-            'SEC003': { name: 'Officer Kamal Fernando', password: 'sec003', gate: 'GATE-03' },
-            'SEC004': { name: 'Officer Nimal Rathnayake', password: 'sec004', gate: 'GATE-04' }
-        };
+    // Global state
+    let state = {
+        currentSecurityId: null,
+        currentGate: null,
+        currentScanData: null,
+        html5QrCode: null,
+        scanHistory: [],
+        cameras: [],
+        currentCameraIndex: 0,
+        isScanning: false,
+        lastScannedRef: null,
+        lastScanTime: 0,
+        gasUrlConfigured: false
+    };
 
-        // Global variables
-        let currentSecurityId = null;
-        let currentGate = null;
-        let currentScanData = null;
-        let html5QrCode = null;
-        let scanHistory = [];
-        let cameras = [];
-        let currentCameraIndex = 0;
+    // DOM Elements - Cache for performance
+    const dom = {
+        loginScreen: document.getElementById('loginScreen'),
+        securityDashboard: document.getElementById('securityDashboard'),
+        securityLoginBtn: document.getElementById('securityLoginBtn'),
+        securityLogoutBtn: document.getElementById('securityLogout'),
+        scannerStatus: document.getElementById('scannerStatus'),
+        bookingDetails: document.getElementById('bookingDetails'),
+        scanHistoryList: document.getElementById('scanHistoryList'),
+        currentDateTime: document.getElementById('currentDateTime'),
+        currentGateSpan: document.getElementById('currentGate'),
+        officerNameSpan: document.getElementById('officerName'),
+        alertMessage: document.getElementById('alertMessage'),
+        cameraSelect: document.getElementById('cameraSelect'),
+        startScanner: document.getElementById('startScanner'),
+        stopScanner: document.getElementById('stopScanner'),
+        switchCamera: document.getElementById('switchCamera'),
+        markEntry: document.getElementById('markEntry'),
+        markExit: document.getElementById('markExit'),
+        clearScan: document.getElementById('clearScan'),
+        manualVerifyBtn: document.getElementById('manualVerifyBtn'),
+        manualRefInput: document.getElementById('manualRefInput'),
+        securityId: document.getElementById('securityId'),
+        securityPassword: document.getElementById('securityPassword'),
+        gateNumber: document.getElementById('gateNumber'),
+        loginMessage: document.getElementById('loginMessage'),
+        loginSpinner: document.getElementById('loginSpinner'),
+        gasUrlInput: document.getElementById('gasUrlInput'), // ADD THIS
+        saveGasUrlBtn: document.getElementById('saveGasUrlBtn'), // ADD THIS
+        gasUrlStatus: document.getElementById('gasUrlStatus') // ADD THIS
+    };
 
-        // DOM Elements
-        const loginScreen = document.getElementById('loginScreen');
-        const securityDashboard = document.getElementById('securityDashboard');
-        const securityLoginBtn = document.getElementById('securityLoginBtn');
-        const securityLogoutBtn = document.getElementById('securityLogout');
-        const scannerStatus = document.getElementById('scannerStatus');
-        const bookingDetails = document.getElementById('bookingDetails');
-        const scanHistoryList = document.getElementById('scanHistoryList');
-        const currentDateTime = document.getElementById('currentDateTime');
-        const currentGateSpan = document.getElementById('currentGate');
-        const officerNameSpan = document.getElementById('officerName');
-        const alertMessage = document.getElementById('alertMessage');
-        const cameraSelect = document.getElementById('cameraSelect');
+    // Initialize application
+    function initialize() {
+        console.log('Initializing Security Gate System...');
+        
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+        
+        loadScanHistory();
+        loadGasUrl();
+        setupEventListeners();
+        initializeQrScanner();
+    }
 
-        // Initialize
-        function initialize() {
-            updateDateTime();
-            setInterval(updateDateTime, 1000);
-            
-            // Load scan history from localStorage
-            loadScanHistory();
-            
-            // Event listeners
-            securityLoginBtn.addEventListener('click', handleSecurityLogin);
-            securityLogoutBtn.addEventListener('click', handleSecurityLogout);
-            document.getElementById('startScanner').addEventListener('click', startScanner);
-            document.getElementById('stopScanner').addEventListener('click', stopScanner);
-            document.getElementById('switchCamera').addEventListener('click', switchCamera);
-            document.getElementById('markEntry').addEventListener('click', markVehicleEntry);
-            document.getElementById('markExit').addEventListener('click', markVehicleExit);
-            document.getElementById('clearScan').addEventListener('click', clearScan);
-            document.getElementById('manualVerifyBtn').addEventListener('click', verifyManualEntry);
-            document.getElementById('manualRefInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') verifyManualEntry();
-            });
-            
-            // Initialize QR scanner
-            initializeQrScanner();
+    // Setup all event listeners
+    function setupEventListeners() {
+        dom.securityLoginBtn.addEventListener('click', handleSecurityLogin);
+        dom.securityLogoutBtn.addEventListener('click', handleSecurityLogout);
+        dom.startScanner.addEventListener('click', startScanner);
+        dom.stopScanner.addEventListener('click', stopScanner);
+        dom.switchCamera.addEventListener('click', switchCamera);
+        dom.markEntry.addEventListener('click', markVehicleEntry);
+        dom.markExit.addEventListener('click', markVehicleExit);
+        dom.clearScan.addEventListener('click', clearScan);
+        dom.manualVerifyBtn.addEventListener('click', verifyManualEntry);
+        dom.saveGasUrlBtn.addEventListener('click', saveGasUrl); // ADD THIS
+        
+        dom.manualRefInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') verifyManualEntry();
+        });
+        
+        dom.securityPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSecurityLogin();
+        });
+        
+        dom.gasUrlInput.addEventListener('keypress', (e) => { // ADD THIS
+            if (e.key === 'Enter') saveGasUrl();
+        });
+    }
+
+    // Load GAS URL from localStorage
+    function loadGasUrl() {
+        const savedUrl = localStorage.getItem('securityGasUrl');
+        if (savedUrl) {
+            GAS_WEB_APP_URL = savedUrl;
+            dom.gasUrlInput.value = savedUrl;
+            state.gasUrlConfigured = true;
+            showGasUrlStatus('GAS URL loaded from storage', 'success');
+        } else {
+            showGasUrlStatus('Please enter your Google Apps Script URL', 'warning');
         }
+    }
 
-        // Update date and time display
-        function updateDateTime() {
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            const timeStr = now.toLocaleTimeString('en-US', {
-                hour12: true,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            currentDateTime.textContent = `${dateStr} | ${timeStr}`;
+    // Save GAS URL to localStorage
+    function saveGasUrl() {
+        const url = dom.gasUrlInput.value.trim();
+        
+        if (!url) {
+            showGasUrlStatus('Please enter a valid URL', 'error');
+            return;
         }
-
-        // Initialize QR Scanner
-        function initializeQrScanner() {
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                rememberLastUsedCamera: true,
-                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
-            };
-            
-            html5QrCode = new Html5Qrcode("qr-reader");
-            
-            // Get available cameras
-            Html5Qrcode.getCameras().then(devices => {
-                cameras = devices;
-                if (devices && devices.length) {
-                    populateCameraSelect(devices);
-                } else {
-                    showAlert('No cameras found. Please check your camera permissions.', 'error');
-                }
-            }).catch(err => {
-                console.error("Error getting cameras:", err);
-            });
+        
+        // Basic URL validation
+        if (!url.startsWith('https://script.google.com/macros/s/')) {
+            showGasUrlStatus('URL should start with: https://script.google.com/macros/s/', 'warning');
         }
+        
+        GAS_WEB_APP_URL = url;
+        localStorage.setItem('securityGasUrl', url);
+        state.gasUrlConfigured = true;
+        showGasUrlStatus('GAS URL saved successfully!', 'success');
+        
+        // Test connection
+        testGasConnection();
+    }
 
-        // Populate camera select dropdown
-        function populateCameraSelect(devices) {
-            cameraSelect.innerHTML = '<option value="">Select Camera...</option>';
-            devices.forEach((device, index) => {
-                const option = document.createElement('option');
-                option.value = device.id;
-                option.textContent = device.label || `Camera ${index + 1}`;
-                cameraSelect.appendChild(option);
+    // Show GAS URL status
+    function showGasUrlStatus(message, type = 'info') {
+        dom.gasUrlStatus.textContent = message;
+        dom.gasUrlStatus.className = 'gas-url-status';
+        dom.gasUrlStatus.classList.add(`status-${type}`);
+        
+        setTimeout(() => {
+            if (type === 'success' || type === 'info') {
+                dom.gasUrlStatus.textContent = '';
+                dom.gasUrlStatus.className = 'gas-url-status hidden';
+            }
+        }, 3000);
+    }
+
+    // Test GAS connection
+    async function testGasConnection() {
+        if (!GAS_WEB_APP_URL) return;
+        
+        showGasUrlStatus('Testing connection to Google Apps Script...', 'info');
+        
+        try {
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'GET',
+                mode: 'no-cors' // Use no-cors for simple test
             });
             
-            cameraSelect.addEventListener('change', () => {
-                if (html5QrCode && html5QrCode.isScanning) {
-                    stopScanner().then(() => {
-                        startScanner();
-                    });
-                }
-            });
+            showGasUrlStatus('Connection test completed', 'success');
+        } catch (error) {
+            console.log('Connection test (may fail in browser due to CORS)');
+            showGasUrlStatus('URL saved. Note: Full test requires actual deployment.', 'info');
         }
+    }
 
-        // Start QR Scanner
-        async function startScanner() {
-            const selectedCameraId = cameraSelect.value;
+    // Update date and time display
+    function updateDateTime() {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        const timeStr = now.toLocaleTimeString('en-US', {
+            hour12: true,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        dom.currentDateTime.textContent = `${dateStr} | ${timeStr}`;
+    }
+
+    // Initialize QR Scanner
+    async function initializeQrScanner() {
+        try {
+            state.html5QrCode = new Html5Qrcode("qr-reader");
             
-            if (!selectedCameraId && cameras.length > 0) {
-                // Use first camera if none selected
-                currentCameraIndex = 0;
-                await startCamera(cameras[0].id);
-            } else if (selectedCameraId) {
-                await startCamera(selectedCameraId);
+            const devices = await Html5Qrcode.getCameras();
+            state.cameras = devices;
+            
+            if (devices && devices.length) {
+                populateCameraSelect(devices);
+                console.log(`Found ${devices.length} camera(s)`);
             } else {
-                showAlert('No camera available. Please connect a camera.', 'error');
-                return;
+                showAlert('No cameras found. Please check camera permissions.', 'warning');
+                dom.cameraSelect.innerHTML = '<option value="">No cameras available</option>';
             }
+        } catch (err) {
+            console.error("Error initializing QR scanner:", err);
+            showAlert('Failed to initialize camera: ' + err.message, 'error');
+            dom.cameraSelect.innerHTML = '<option value="">Camera initialization failed</option>';
         }
+    }
 
-        // Start specific camera
-        async function startCamera(cameraId) {
-            try {
-                await html5QrCode.start(
-                    cameraId,
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 }
-                    },
-                    onScanSuccess,
-                    onScanFailure
-                );
-                
-                scannerStatus.className = 'scanner-status status-scanning';
-                scannerStatus.innerHTML = '<i class="fas fa-camera"></i> Scanning for QR codes...';
-                
-                document.getElementById('startScanner').disabled = true;
-                document.getElementById('stopScanner').disabled = false;
-                
-                showAlert('Scanner started successfully. Point camera at QR code.', 'success');
-            } catch (err) {
-                console.error("Error starting scanner:", err);
-                showAlert('Failed to start scanner: ' + err, 'error');
-            }
-        }
-
-        // Stop QR Scanner
-        async function stopScanner() {
-            if (!html5QrCode || !html5QrCode.isScanning) return;
-            
-            try {
-                await html5QrCode.stop();
-                scannerStatus.className = 'scanner-status status-idle';
-                scannerStatus.innerHTML = '<i class="fas fa-info-circle"></i> Scanner stopped.';
-                
-                document.getElementById('startScanner').disabled = false;
-                document.getElementById('stopScanner').disabled = true;
-            } catch (err) {
-                console.error("Error stopping scanner:", err);
-            }
-        }
-
-        // Switch between cameras
-        async function switchCamera() {
-            if (!cameras || cameras.length < 2) {
-                showAlert('Only one camera available.', 'warning');
-                return;
-            }
-            
-            if (html5QrCode && html5QrCode.isScanning) {
+    // Populate camera select dropdown
+    function populateCameraSelect(devices) {
+        dom.cameraSelect.innerHTML = '';
+        
+        devices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.id;
+            option.textContent = device.label || `Camera ${index + 1}`;
+            dom.cameraSelect.appendChild(option);
+        });
+        
+        dom.cameraSelect.addEventListener('change', async () => {
+            if (state.isScanning) {
                 await stopScanner();
-                currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
-                await startCamera(cameras[currentCameraIndex].id);
+                await startScanner();
+            }
+        });
+    }
+
+    // Start QR Scanner
+    async function startScanner() {
+        // Check if GAS URL is configured
+        if (!state.gasUrlConfigured) {
+            showAlert('Please configure Google Apps Script URL first', 'error');
+            return;
+        }
+        
+        const selectedCameraId = dom.cameraSelect.value;
+        
+        if (!selectedCameraId && state.cameras.length > 0) {
+            await startCamera(state.cameras[0].id);
+        } else if (selectedCameraId) {
+            await startCamera(selectedCameraId);
+        } else {
+            showAlert('No camera available. Please connect a camera and refresh.', 'error');
+            return;
+        }
+    }
+
+    // Start specific camera
+    async function startCamera(cameraId) {
+        try {
+            await state.html5QrCode.start(
+                cameraId,
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                onScanSuccess,
+                onScanFailure
+            );
+            
+            state.isScanning = true;
+            
+            dom.scannerStatus.className = 'scanner-status status-scanning';
+            dom.scannerStatus.innerHTML = '<i class="fas fa-camera"></i> Scanning for QR codes...';
+            
+            dom.startScanner.disabled = true;
+            dom.stopScanner.disabled = false;
+            
+            showAlert('Scanner started. Point camera at QR code.', 'success');
+        } catch (err) {
+            console.error("Error starting scanner:", err);
+            showAlert('Failed to start scanner: ' + err.message, 'error');
+            state.isScanning = false;
+        }
+    }
+
+    // Stop QR Scanner
+    async function stopScanner() {
+        if (!state.html5QrCode || !state.isScanning) return;
+        
+        try {
+            await state.html5QrCode.stop();
+            state.isScanning = false;
+            
+            dom.scannerStatus.className = 'scanner-status status-idle';
+            dom.scannerStatus.innerHTML = '<i class="fas fa-info-circle"></i> Scanner stopped.';
+            
+            dom.startScanner.disabled = false;
+            dom.stopScanner.disabled = true;
+        } catch (err) {
+            console.error("Error stopping scanner:", err);
+        }
+    }
+
+    // Switch between cameras
+    async function switchCamera() {
+        if (!state.cameras || state.cameras.length < 2) {
+            showAlert('Only one camera available.', 'warning');
+            return;
+        }
+        
+        if (state.isScanning) {
+            await stopScanner();
+            state.currentCameraIndex = (state.currentCameraIndex + 1) % state.cameras.length;
+            dom.cameraSelect.selectedIndex = state.currentCameraIndex;
+            await startCamera(state.cameras[state.currentCameraIndex].id);
+            showAlert(`Switched to Camera ${state.currentCameraIndex + 1}`, 'info');
+        }
+    }
+
+    // Handle successful scan
+    async function onScanSuccess(decodedText, decodedResult) {
+        // Check if GAS URL is configured
+        if (!state.gasUrlConfigured) {
+            showAlert('Google Apps Script URL not configured', 'error');
+            return;
+        }
+        
+        const now = Date.now();
+        const refNumber = extractRefFromQR(decodedText);
+        
+        // Prevent rapid duplicate scans (0.5 seconds cooldown only)
+        if (state.lastScannedRef === refNumber && (now - state.lastScanTime) < 500) {
+            return;
+        }
+        
+        state.lastScannedRef = refNumber;
+        state.lastScanTime = now;
+        
+        playBeepSound();
+        
+        dom.scannerStatus.className = 'scanner-status status-success';
+        dom.scannerStatus.innerHTML = '<i class="fas fa-check-circle"></i> QR Code scanned!';
+        
+        await processQRData(decodedText);
+        
+        setTimeout(() => {
+            if (state.isScanning) {
+                dom.scannerStatus.className = 'scanner-status status-scanning';
+                dom.scannerStatus.innerHTML = '<i class="fas fa-camera"></i> Scanning for QR codes...';
+            }
+        }, 2000);
+    }
+
+    // Handle scan failure
+    function onScanFailure(error) {
+        // Silently handle - these are normal when no QR code is in view
+    }
+
+    // Play beep sound
+    function playBeepSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (e) {
+            console.log("Audio not available");
+        }
+    }
+
+    // Extract reference from QR text
+    function extractRefFromQR(qrText) {
+        const lines = qrText.split('\n');
+        
+        for (const line of lines) {
+            if (line.includes('Booking Reference:') || line.includes('Ref:')) {
+                const parts = line.split(':');
+                if (parts.length > 1) return parts[1].trim();
             }
         }
+        
+        const refMatch = qrText.match(/VBS-\d{4}-\d+/);
+        if (refMatch) return refMatch[0];
+        
+        return qrText.trim();
+    }
 
-        // Handle successful scan
-        async function onScanSuccess(decodedText, decodedResult) {
-            // Prevent multiple scans in quick succession
-            if (currentScanData && currentScanData.ref === extractRefFromQR(decodedText)) {
-                return;
-            }
-            
-            // Add beep sound (optional)
-            playBeepSound();
-            
-            // Update scanner status
-            scannerStatus.className = 'scanner-status status-success';
-            scannerStatus.innerHTML = '<i class="fas fa-check-circle"></i> QR Code scanned successfully!';
-            
-            // Process QR data
-            await processQRData(decodedText);
-            
-            // Reset scanner status after 2 seconds
-            setTimeout(() => {
-                if (html5QrCode && html5QrCode.isScanning) {
-                    scannerStatus.className = 'scanner-status status-scanning';
-                    scannerStatus.innerHTML = '<i class="fas fa-camera"></i> Scanning for QR codes...';
-                }
-            }, 2000);
+    // Process QR data
+    async function processQRData(qrText) {
+        const refNumber = extractRefFromQR(qrText);
+        
+        if (!refNumber) {
+            showAlert('Invalid QR code format.', 'error');
+            return;
         }
-
-        // Handle scan failure
-        function onScanFailure(error) {
-            // Don't show error for normal "not found" cases
-            if (!error.includes("No MultiFormat Readers")) {
-                console.warn("Scan error:", error);
+        
+        dom.scannerStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+        
+        try {
+            const result = await callGoogleAppsScript('verifyBooking', {
+                refNumber: refNumber,
+                gateNumber: state.currentGate,
+                securityId: state.currentSecurityId
+            });
+            
+            if (result.success) {
+                displayBookingDetails(result.booking);
+                state.currentScanData = result.booking;
+                addToScanHistory(refNumber, 'scanned', result.booking.status);
+                showAlert('Booking verified successfully!', 'success');
+            } else {
+                showAlert(result.error || 'Booking not found.', 'error');
+                dom.scannerStatus.className = 'scanner-status status-error';
+                dom.scannerStatus.innerHTML = '<i class="fas fa-times-circle"></i> Verification failed';
             }
+        } catch (error) {
+            console.error("Verification error:", error);
+            showAlert('Network error. Please check GAS URL and try again.', 'error');
         }
+    }
 
-        // Play beep sound
-        function playBeepSound() {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-            } catch (e) {
-                console.log("Audio not supported:", e);
-            }
+    // Verify manual entry
+    async function verifyManualEntry() {
+        // Check if GAS URL is configured
+        if (!state.gasUrlConfigured) {
+            showAlert('Google Apps Script URL not configured', 'error');
+            return;
         }
-
-        // Extract reference from QR text
-        function extractRefFromQR(qrText) {
-            // Try to parse different QR formats
-            const lines = qrText.split('\n');
-            
-            for (const line of lines) {
-                // Look for booking reference
-                if (line.includes('Booking Reference:')) {
-                    return line.split('Booking Reference:')[1].trim();
-                }
-                if (line.includes('Ref:')) {
-                    return line.split('Ref:')[1].trim();
-                }
-            }
-            
-            // If no reference found, try to extract VBS- pattern
-            const refMatch = qrText.match(/VBS-\d{4}-\d+/);
-            if (refMatch) {
-                return refMatch[0];
-            }
-            
-            // Return the entire text as fallback
-            return qrText.trim();
+        
+        const manualInput = dom.manualRefInput.value.trim();
+        
+        if (!manualInput) {
+            showAlert('Please enter a booking reference.', 'warning');
+            return;
         }
-
-        // Process QR data
-        async function processQRData(qrText) {
-            const refNumber = extractRefFromQR(qrText);
+        
+        dom.scannerStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+        
+        try {
+            const result = await callGoogleAppsScript('verifyBooking', {
+                refNumber: manualInput,
+                gateNumber: state.currentGate,
+                securityId: state.currentSecurityId
+            });
             
-            if (!refNumber) {
-                showAlert('Invalid QR code format. Could not extract booking reference.', 'error');
-                return;
+            if (result.success) {
+                displayBookingDetails(result.booking);
+                state.currentScanData = result.booking;
+                addToScanHistory(manualInput, 'manual', result.booking.status);
+                dom.manualRefInput.value = '';
+                showAlert('Booking verified successfully!', 'success');
+            } else {
+                showAlert(result.error || 'Booking not found.', 'error');
             }
-            
-            // Show loading
-            scannerStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying booking...';
-            
-            try {
-                // Call backend to verify booking
-                const result = await callGoogleAppsScript('verifyBooking', {
-                    refNumber: refNumber,
-                    gateNumber: currentGate,
-                    securityId: currentSecurityId
-                });
-                
-                if (result.success) {
-                    displayBookingDetails(result.booking);
-                    currentScanData = result.booking;
-                    addToScanHistory(refNumber, 'scanned', result.booking.status);
-                } else {
-                    showAlert(result.error || 'Booking not found or invalid.', 'error');
-                    scannerStatus.className = 'scanner-status status-error';
-                    scannerStatus.innerHTML = '<i class="fas fa-times-circle"></i> Verification failed!';
-                }
-            } catch (error) {
-                console.error("Verification error:", error);
-                showAlert('Network error. Please try again.', 'error');
-            }
+        } catch (error) {
+            console.error("Manual verification error:", error);
+            showAlert('Network error. Please check GAS URL and try again.', 'error');
         }
+    }
 
-        // Verify manual entry
-        async function verifyManualEntry() {
-            const manualInput = document.getElementById('manualRefInput').value.trim();
-            
-            if (!manualInput) {
-                showAlert('Please enter a booking reference or password.', 'warning');
-                return;
-            }
-            
-            scannerStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-            
-            try {
-                const result = await callGoogleAppsScript('verifyBooking', {
-                    refNumber: manualInput,
-                    gateNumber: currentGate,
-                    securityId: currentSecurityId
-                });
-                
-                if (result.success) {
-                    displayBookingDetails(result.booking);
-                    currentScanData = result.booking;
-                    addToScanHistory(manualInput, 'manual', result.booking.status);
-                    document.getElementById('manualRefInput').value = '';
-                } else {
-                    showAlert(result.error || 'Booking not found.', 'error');
-                }
-            } catch (error) {
-                console.error("Manual verification error:", error);
-                showAlert('Network error. Please try again.', 'error');
-            }
-        }
+    // Display booking details
+    function displayBookingDetails(booking) {
+        document.getElementById('detailRef').textContent = booking.refnumber || 'N/A';
+        document.getElementById('detailVehicle').textContent = booking.allocatedvehicle || 'Not allocated';
+        document.getElementById('detailDriver').textContent = booking.allocateddriver || 'Not allocated';
+        document.getElementById('detailRequester').textContent = 
+            `${booking.username || 'N/A'}, ${booking.userdesignation || 'N/A'}`;
+        document.getElementById('detailBranch').textContent = booking.userbranch || 'N/A';
+        document.getElementById('detailPurpose').textContent = booking.purpose || 'N/A';
+        document.getElementById('detailDestination').textContent = booking.destination || 'N/A';
+        
+        const startTime = formatDateTime(booking.startdatetime);
+        const endTime = formatDateTime(booking.enddatetime);
+        document.getElementById('detailSchedule').textContent = `${startTime} to ${endTime}`;
+        
+        document.getElementById('detailStatus').textContent = booking.status || 'N/A';
+        document.getElementById('detailLastActivity').textContent = 
+            booking.lastActivity ? formatDateTime(booking.lastActivity) : 'No activity';
+        
+        updateVerificationStatus(booking);
+        
+        dom.bookingDetails.classList.add('active');
+        
+        const canMarkEntry = booking.status === 'Approved' && !booking.entryTime;
+        const canMarkExit = booking.status === 'Approved' && booking.entryTime && !booking.exitTime;
+        
+        dom.markEntry.disabled = !canMarkEntry;
+        dom.markExit.disabled = !canMarkExit;
+    }
 
-        // Display booking details
-        function displayBookingDetails(booking) {
-            // Update UI elements
-            document.getElementById('detailRef').textContent = booking.refnumber || 'N/A';
-            document.getElementById('detailVehicle').textContent = booking.allocatedvehicle || 'Not allocated';
-            document.getElementById('detailDriver').textContent = booking.allocateddriver || 'Not allocated';
-            document.getElementById('detailRequester').textContent = 
-                `${booking.username || 'N/A'}, ${booking.userdesignation || 'N/A'}`;
-            document.getElementById('detailBranch').textContent = booking.userbranch || 'N/A';
-            document.getElementById('detailPurpose').textContent = booking.purpose || 'N/A';
-            document.getElementById('detailDestination').textContent = booking.destination || 'N/A';
+    // Update verification status
+    function updateVerificationStatus(booking) {
+        const verificationStatus = document.getElementById('verificationStatus');
+        verificationStatus.className = 'verification-status';
+        
+        if (booking.status === 'Approved') {
+            const currentTime = new Date();
+            const startTime = new Date(booking.startdatetime);
+            const endTime = new Date(booking.enddatetime);
             
-            const startTime = formatDateTime(booking.startdatetime);
-            const endTime = formatDateTime(booking.enddatetime);
-            document.getElementById('detailSchedule').textContent = `${startTime} to ${endTime}`;
-            
-            document.getElementById('detailStatus').textContent = booking.status || 'N/A';
-            document.getElementById('detailLastActivity').textContent = 
-                booking.lastActivity ? formatDateTime(booking.lastActivity) : 'No activity recorded';
-            
-            // Update verification status
-            const verificationStatus = document.getElementById('verificationStatus');
-            verificationStatus.className = 'verification-status';
-            
-            if (booking.status === 'Approved') {
-                const currentTime = new Date();
-                const startTime = new Date(booking.startdatetime);
-                const endTime = new Date(booking.enddatetime);
-                
-                if (currentTime < startTime) {
-                    verificationStatus.className += ' status-pending';
-                    verificationStatus.innerHTML = '<i class="fas fa-clock"></i> Trip has not started yet';
-                } else if (currentTime > endTime) {
-                    verificationStatus.className += ' status-expired';
-                    verificationStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Trip has expired';
-                } else {
-                    verificationStatus.className += ' status-valid';
-                    verificationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Valid for current time';
-                }
-            } else if (booking.status === 'Pending') {
+            if (currentTime < startTime) {
                 verificationStatus.className += ' status-pending';
-                verificationStatus.innerHTML = '<i class="fas fa-clock"></i> Booking pending approval';
-            } else if (booking.status === 'Rejected') {
-                verificationStatus.className += ' status-invalid';
-                verificationStatus.innerHTML = '<i class="fas fa-times-circle"></i> Booking was rejected';
-            } else if (booking.status === 'Completed') {
+                verificationStatus.innerHTML = '<i class="fas fa-clock"></i> Trip not started yet';
+            } else if (currentTime > endTime) {
                 verificationStatus.className += ' status-expired';
-                verificationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Trip completed';
+                verificationStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Trip expired';
+            } else {
+                verificationStatus.className += ' status-valid';
+                verificationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Valid for current time';
             }
-            
-            // Show booking details
-            bookingDetails.classList.add('active');
-            
-            // Enable/disable buttons based on status
-            const canMarkEntry = booking.status === 'Approved' && !booking.entryTime;
-            const canMarkExit = booking.status === 'Approved' && booking.entryTime && !booking.exitTime;
-            
-            document.getElementById('markEntry').disabled = !canMarkEntry;
-            document.getElementById('markExit').disabled = !canMarkExit;
+        } else if (booking.status === 'Pending') {
+            verificationStatus.className += ' status-pending';
+            verificationStatus.innerHTML = '<i class="fas fa-clock"></i> Pending approval';
+        } else if (booking.status === 'Rejected') {
+            verificationStatus.className += ' status-invalid';
+            verificationStatus.innerHTML = '<i class="fas fa-times-circle"></i> Booking rejected';
+        } else if (booking.status === 'Completed') {
+            verificationStatus.className += ' status-expired';
+            verificationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Trip completed';
         }
+    }
 
-        // Format date time
-        function formatDateTime(dateTimeString) {
-            if (!dateTimeString) return 'N/A';
+    // Format date time
+    function formatDateTime(dateTimeString) {
+        if (!dateTimeString) return 'N/A';
+        try {
             const date = new Date(dateTimeString);
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } catch (e) {
+            return 'Invalid date';
         }
+    }
 
-        // Mark vehicle entry
-        async function markVehicleEntry() {
-            if (!currentScanData) {
-                showAlert('No booking selected. Please scan a QR code first.', 'warning');
-                return;
-            }
-            
-            try {
-                const result = await callGoogleAppsScript('markVehicleEntry', {
-                    refNumber: currentScanData.refnumber,
-                    gateNumber: currentGate,
-                    securityId: currentSecurityId,
-                    timestamp: new Date().toISOString()
-                });
-                
-                if (result.success) {
-                    showAlert('Vehicle entry recorded successfully!', 'success');
-                    currentScanData.entryTime = result.entryTime;
-                    document.getElementById('detailLastActivity').textContent = 
-                        `Entry recorded at ${formatDateTime(result.entryTime)}`;
-                    
-                    document.getElementById('markEntry').disabled = true;
-                    document.getElementById('markExit').disabled = false;
-                    
-                    addToScanHistory(currentScanData.refnumber, 'entry', 'success');
-                } else {
-                    showAlert(result.error || 'Failed to record entry.', 'error');
-                }
-            } catch (error) {
-                console.error("Entry error:", error);
-                showAlert('Network error. Please try again.', 'error');
-            }
+    // Mark vehicle entry
+    async function markVehicleEntry() {
+        if (!state.currentScanData) {
+            showAlert('No booking selected.', 'warning');
+            return;
         }
-
-        // Mark vehicle exit
-        async function markVehicleExit() {
-            if (!currentScanData) {
-                showAlert('No booking selected. Please scan a QR code first.', 'warning');
-                return;
-            }
-            
-            try {
-                const result = await callGoogleAppsScript('markVehicleExit', {
-                    refNumber: currentScanData.refnumber,
-                    gateNumber: currentGate,
-                    securityId: currentSecurityId,
-                    timestamp: new Date().toISOString()
-                });
-                
-                if (result.success) {
-                    showAlert('Vehicle exit recorded successfully!', 'success');
-                    currentScanData.exitTime = result.exitTime;
-                    document.getElementById('detailLastActivity').textContent = 
-                        `Exit recorded at ${formatDateTime(result.exitTime)}`;
-                    
-                    document.getElementById('markExit').disabled = true;
-                    
-                    addToScanHistory(currentScanData.refnumber, 'exit', 'success');
-                } else {
-                    showAlert(result.error || 'Failed to record exit.', 'error');
-                }
-            } catch (error) {
-                console.error("Exit error:", error);
-                showAlert('Network error. Please try again.', 'error');
-            }
+        
+        // Check if GAS URL is configured
+        if (!state.gasUrlConfigured) {
+            showAlert('Google Apps Script URL not configured', 'error');
+            return;
         }
-
-        // Clear current scan
-        function clearScan() {
-            currentScanData = null;
-            bookingDetails.classList.remove('active');
-            showAlert('Scan cleared. Ready for next QR code.', 'info');
-        }
-
-        // Add to scan history
-        function addToScanHistory(refNumber, action, status) {
-            const historyItem = {
-                timestamp: new Date().toISOString(),
-                refNumber: refNumber,
-                action: action, // 'scanned', 'manual', 'entry', 'exit'
-                status: status,
-                gate: currentGate,
-                officer: currentSecurityId
-            };
-            
-            scanHistory.unshift(historyItem);
-            
-            // Keep only last 50 items
-            if (scanHistory.length > 50) {
-                scanHistory.pop();
-            }
-            
-            // Save to localStorage
-            saveScanHistory();
-            
-            // Update UI
-            updateScanHistoryUI();
-        }
-
-        // Update scan history UI
-        function updateScanHistoryUI() {
-            scanHistoryList.innerHTML = '';
-            
-            scanHistory.slice(0, 10).forEach(item => {
-                const historyItem = document.createElement('div');
-                historyItem.className = 'history-item';
-                
-                const time = formatDateTime(item.timestamp);
-                let actionText = '';
-                let statusClass = '';
-                
-                switch(item.action) {
-                    case 'scanned':
-                        actionText = 'QR Scanned';
-                        statusClass = 'status-pending';
-                        break;
-                    case 'manual':
-                        actionText = 'Manual Entry';
-                        statusClass = 'status-pending';
-                        break;
-                    case 'entry':
-                        actionText = 'Vehicle Entry';
-                        statusClass = 'status-entry';
-                        break;
-                    case 'exit':
-                        actionText = 'Vehicle Exit';
-                        statusClass = 'status-exit';
-                        break;
-                }
-                
-                historyItem.innerHTML = `
-                    <div class="history-time">${time}</div>
-                    <div class="history-details">
-                        <span class="history-ref">${item.refNumber.substring(0, 12)}${item.refNumber.length > 12 ? '...' : ''}</span>
-                        <span class="history-status ${statusClass}">${actionText}</span>
-                    </div>
-                `;
-                
-                scanHistoryList.appendChild(historyItem);
+        
+        try {
+            const result = await callGoogleAppsScript('markVehicleEntry', {
+                refNumber: state.currentScanData.refnumber,
+                gateNumber: state.currentGate,
+                securityId: state.currentSecurityId,
+                timestamp: new Date().toISOString()
             });
-        }
-
-        // Save scan history to localStorage
-        function saveScanHistory() {
-            try {
-                localStorage.setItem('securityScanHistory', JSON.stringify(scanHistory));
-            } catch (e) {
-                console.error("Error saving scan history:", e);
-            }
-        }
-
-        // Load scan history from localStorage
-        function loadScanHistory() {
-            try {
-                const saved = localStorage.getItem('securityScanHistory');
-                if (saved) {
-                    scanHistory = JSON.parse(saved);
-                    updateScanHistoryUI();
-                }
-            } catch (e) {
-                console.error("Error loading scan history:", e);
-            }
-        }
-
-        // Show alert message
-        function showAlert(message, type = 'info') {
-            alertMessage.innerHTML = '';
-            alertMessage.className = `alert alert-${type}`;
             
-            let icon = '';
-            switch(type) {
-                case 'success':
-                    icon = '<i class="fas fa-check-circle"></i>';
+            if (result.success) {
+                showAlert('Vehicle entry recorded!', 'success');
+                state.currentScanData.entryTime = result.entryTime;
+                document.getElementById('detailLastActivity').textContent = 
+                    `Entry: ${formatDateTime(result.entryTime)}`;
+                
+                dom.markEntry.disabled = true;
+                dom.markExit.disabled = false;
+                
+                addToScanHistory(state.currentScanData.refnumber, 'entry', 'success');
+                playBeepSound();
+            } else {
+                showAlert(result.error || 'Failed to record entry.', 'error');
+            }
+        } catch (error) {
+            console.error("Entry error:", error);
+            showAlert('Network error. Please check GAS URL and try again.', 'error');
+        }
+    }
+
+    // Mark vehicle exit
+    async function markVehicleExit() {
+        if (!state.currentScanData) {
+            showAlert('No booking selected.', 'warning');
+            return;
+        }
+        
+        // Check if GAS URL is configured
+        if (!state.gasUrlConfigured) {
+            showAlert('Google Apps Script URL not configured', 'error');
+            return;
+        }
+        
+        try {
+            const result = await callGoogleAppsScript('markVehicleExit', {
+                refNumber: state.currentScanData.refnumber,
+                gateNumber: state.currentGate,
+                securityId: state.currentSecurityId,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (result.success) {
+                showAlert('Vehicle exit recorded!', 'success');
+                state.currentScanData.exitTime = result.exitTime;
+                document.getElementById('detailLastActivity').textContent = 
+                    `Exit: ${formatDateTime(result.exitTime)}`;
+                
+                dom.markExit.disabled = true;
+                
+                addToScanHistory(state.currentScanData.refnumber, 'exit', 'success');
+                playBeepSound();
+            } else {
+                showAlert(result.error || 'Failed to record exit.', 'error');
+            }
+        } catch (error) {
+            console.error("Exit error:", error);
+            showAlert('Network error. Please check GAS URL and try again.', 'error');
+        }
+    }
+
+    // Clear current scan
+    function clearScan() {
+        state.currentScanData = null;
+        dom.bookingDetails.classList.remove('active');
+        showAlert('Scan cleared.', 'info');
+    }
+
+    // Add to scan history
+    function addToScanHistory(refNumber, action, status) {
+        const historyItem = {
+            timestamp: new Date().toISOString(),
+            refNumber: refNumber,
+            action: action,
+            status: status,
+            gate: state.currentGate,
+            officer: state.currentSecurityId
+        };
+        
+        state.scanHistory.unshift(historyItem);
+        
+        if (state.scanHistory.length > 50) {
+            state.scanHistory.pop();
+        }
+        
+        saveScanHistory();
+        updateScanHistoryUI();
+    }
+
+    // Update scan history UI
+    function updateScanHistoryUI() {
+        dom.scanHistoryList.innerHTML = '';
+        
+        state.scanHistory.slice(0, 10).forEach(item => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            
+            const time = formatDateTime(item.timestamp);
+            let actionText = '';
+            let statusClass = '';
+            
+            switch(item.action) {
+                case 'scanned':
+                    actionText = 'QR Scanned';
+                    statusClass = 'status-pending';
                     break;
-                case 'error':
-                    icon = '<i class="fas fa-times-circle"></i>';
+                case 'manual':
+                    actionText = 'Manual';
+                    statusClass = 'status-pending';
                     break;
-                case 'warning':
-                    icon = '<i class="fas fa-exclamation-triangle"></i>';
+                case 'entry':
+                    actionText = 'Entry';
+                    statusClass = 'status-entry';
                     break;
-                default:
-                    icon = '<i class="fas fa-info-circle"></i>';
+                case 'exit':
+                    actionText = 'Exit';
+                    statusClass = 'status-exit';
+                    break;
             }
             
-            alertMessage.innerHTML = `${icon} ${message}`;
-            alertMessage.classList.remove('hidden');
+            historyItem.innerHTML = `
+                <div class="history-time">${time}</div>
+                <div class="history-details">
+                    <span class="history-ref">${item.refNumber}</span>
+                    <span class="history-status ${statusClass}">${actionText}</span>
+                </div>
+            `;
             
-            // Auto-hide after 5 seconds for success/info messages
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    alertMessage.classList.add('hidden');
-                }, 5000);
-            }
-        }
+            dom.scanHistoryList.appendChild(historyItem);
+        });
+    }
 
-        // Handle security login
-        async function handleSecurityLogin() {
-            const securityId = document.getElementById('securityId').value.trim().toUpperCase();
-            const password = document.getElementById('securityPassword').value.trim();
-            const gateNumber = document.getElementById('gateNumber').value;
-            
-            if (!securityId || !password || !gateNumber) {
-                showMessage('Please fill in all fields', 'error');
-                return;
+    // Save scan history
+    function saveScanHistory() {
+        try {
+            const data = JSON.stringify(state.scanHistory);
+            window.localStorage.setItem('securityScanHistory', data);
+        } catch (e) {
+            console.error("Error saving history:", e);
+        }
+    }
+
+    // Load scan history
+    function loadScanHistory() {
+        try {
+            const saved = window.localStorage.getItem('securityScanHistory');
+            if (saved) {
+                state.scanHistory = JSON.parse(saved);
+                updateScanHistoryUI();
             }
-            
-            // Simple validation for demo
-            const account = securityAccounts[securityId];
+        } catch (e) {
+            console.error("Error loading history:", e);
+        }
+    }
+
+    // Show alert message
+    function showAlert(message, type = 'info') {
+        dom.alertMessage.innerHTML = '';
+        dom.alertMessage.className = `alert alert-${type}`;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-times-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+        
+        const icon = icons[type] || icons.info;
+        dom.alertMessage.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+        dom.alertMessage.classList.remove('hidden');
+        
+        if (type === 'success' || type === 'info') {
+            setTimeout(() => {
+                dom.alertMessage.classList.add('hidden');
+            }, 5000);
+        }
+    }
+
+    // Handle security login
+    async function handleSecurityLogin() {
+        const securityId = dom.securityId.value.trim().toUpperCase();
+        const password = dom.securityPassword.value.trim();
+        const gateNumber = dom.gateNumber.value;
+        
+        if (!securityId || !password || !gateNumber) {
+            showLoginMessage('Please fill in all fields', 'error');
+            return;
+        }
+        
+        dom.loginSpinner.classList.remove('hidden');
+        dom.securityLoginBtn.disabled = true;
+        
+        const account = securityAccounts[securityId];
+        
+        setTimeout(() => {
             if (account && account.password === password) {
-                // Check if gate matches
                 if (gateNumber !== account.gate) {
-                    showMessage(`Security ID ${securityId} is assigned to ${account.gate}, not ${gateNumber}`, 'error');
+                    showLoginMessage(`${securityId} is assigned to ${account.gate}`, 'error');
+                    dom.loginSpinner.classList.add('hidden');
+                    dom.securityLoginBtn.disabled = false;
                     return;
                 }
                 
-                // Login successful
-                currentSecurityId = securityId;
-                currentGate = gateNumber;
+                state.currentSecurityId = securityId;
+                state.currentGate = gateNumber;
                 
-                // Update UI
-                currentGateSpan.textContent = gateNumber;
-                officerNameSpan.textContent = account.name;
+                dom.currentGateSpan.textContent = gateNumber;
+                dom.officerNameSpan.textContent = account.name;
                 
-                // Switch to dashboard
-                loginScreen.style.display = 'none';
-                securityDashboard.style.display = 'flex';
+                dom.loginScreen.classList.add('hidden');
+                dom.securityDashboard.classList.remove('hidden');
                 
-                // Show welcome message
-                showAlert(`Welcome, ${account.name}! You are logged into ${gateNumber}.`, 'success');
-                
-                // Log login
-                logSecurityActivity('login', `Officer ${securityId} logged into ${gateNumber}`);
-                
+                showAlert(`Welcome, ${account.name}!`, 'success');
+                logSecurityActivity('login', `Logged into ${gateNumber}`);
             } else {
-                showMessage('Invalid security ID or password', 'error');
-            }
-        }
-
-        // Handle security logout
-        async function handleSecurityLogout() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                await stopScanner();
+                showLoginMessage('Invalid credentials', 'error');
             }
             
-            // Log logout
-            logSecurityActivity('logout', `Officer ${currentSecurityId} logged out from ${currentGate}`);
-            
-            // Reset state
-            currentSecurityId = null;
-            currentGate = null;
-            currentScanData = null;
-            
-            // Clear form
-            document.getElementById('securityId').value = '';
-            document.getElementById('securityPassword').value = '';
-            document.getElementById('gateNumber').value = '';
-            
-            // Switch to login screen
-            securityDashboard.style.display = 'none';
-            loginScreen.style.display = 'flex';
-            
-            showMessage('Logged out successfully', 'success');
-        }
+            dom.loginSpinner.classList.add('hidden');
+            dom.securityLoginBtn.disabled = false;
+        }, 500);
+    }
 
-        // Log security activity
-        function logSecurityActivity(action, details) {
-            const log = {
-                timestamp: new Date().toISOString(),
-                securityId: currentSecurityId,
-                gate: currentGate,
-                action: action,
-                details: details
-            };
-            
-            // In a real system, send this to the backend
-            console.log('Security Log:', log);
-            
-            // Call backend to log activity
+    // Handle security logout
+    async function handleSecurityLogout() {
+        if (state.isScanning) {
+            await stopScanner();
+        }
+        
+        logSecurityActivity('logout', `Logged out from ${state.currentGate}`);
+        
+        state.currentSecurityId = null;
+        state.currentGate = null;
+        state.currentScanData = null;
+        
+        dom.securityId.value = '';
+        dom.securityPassword.value = '';
+        dom.gateNumber.value = '';
+        
+        dom.securityDashboard.classList.add('hidden');
+        dom.loginScreen.classList.remove('hidden');
+        
+        showLoginMessage('Logged out successfully', 'success');
+    }
+
+    // Log security activity
+    function logSecurityActivity(action, details) {
+        const log = {
+            timestamp: new Date().toISOString(),
+            securityId: state.currentSecurityId,
+            gate: state.currentGate,
+            action: action,
+            details: details
+        };
+        
+        console.log('Security Log:', log);
+        
+        // Only log to GAS if URL is configured
+        if (state.gasUrlConfigured) {
             callGoogleAppsScript('logSecurityActivity', log).catch(console.error);
         }
+    }
 
-        // Show message (for login screen)
-        function showMessage(message, type = 'error') {
-            const loginMessage = document.getElementById('loginMessage');
-            loginMessage.textContent = message;
-            loginMessage.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
-            loginMessage.style.display = 'block';
+    // Show login message
+    function showLoginMessage(message, type = 'error') {
+        dom.loginMessage.textContent = message;
+        dom.loginMessage.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
+        dom.loginMessage.style.display = 'block';
+        
+        setTimeout(() => {
+            dom.loginMessage.style.display = 'none';
+        }, 5000);
+    }
+
+    // Call Google Apps Script
+    async function callGoogleAppsScript(action, data = {}) {
+        console.log('Calling Google Apps Script:', action, data);
+        
+        if (!GAS_WEB_APP_URL) {
+            throw new Error('Google Apps Script URL not configured');
+        }
+        
+        try {
+            const formData = new URLSearchParams();
+            formData.append('action', action);
             
-            setTimeout(() => {
-                loginMessage.style.display = 'none';
-            }, 5000);
-        }
-
-        // Call Google Apps Script
-        async function callGoogleAppsScript(action, data = {}) {
-            try {
-                const formData = new URLSearchParams();
-                formData.append('action', action);
-                
-                for (const [key, value] of Object.entries(data)) {
-                    formData.append(key, value);
-                }
-
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                return result;
-            } catch (error) {
-                console.error('API call failed:', error);
-                return getMockSecurityData(action, data);
+            // Add all data fields to form
+            for (const [key, value] of Object.entries(data)) {
+                formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
             }
-        }
 
-        // Mock data for security system
-        function getMockSecurityData(action, data) {
-            switch(action) {
-                case 'verifyBooking':
-                    // Mock booking data for testing
-                    const mockBookings = [
-                        {
-                            id: 1,
-                            refnumber: 'VBS-2024-001',
-                            username: 'Dr. Jane Doe',
-                            userdesignation: 'Director Medical Services',
-                            userbranch: 'Medical Services',
-                            purpose: 'Field visit to regional hospital',
-                            destination: 'Kandy General Hospital',
-                            startdatetime: new Date().toISOString(),
-                            enddatetime: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
-                            allocatedvehicle: 'Toyota Hilux - CAB 1234',
-                            allocateddriver: 'John Smith (0712345678)',
-                            status: 'Approved',
-                            entryTime: null,
-                            exitTime: null,
-                            lastActivity: null
-                        },
-                        {
-                            id: 2,
-                            refnumber: 'VBS-2024-002',
-                            username: 'Mr. David Silva',
-                            userdesignation: 'Accountant',
-                            userbranch: 'Finance Department',
-                            purpose: 'Bank visit for transactions',
-                            destination: 'Commercial Bank, Colombo',
-                            startdatetime: new Date().toISOString(),
-                            enddatetime: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-                            allocatedvehicle: 'Mitsubishi Lancer - CAR 5678',
-                            allocateddriver: 'Robert Perera (0723456789)',
-                            status: 'Approved',
-                            entryTime: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-                            exitTime: null,
-                            lastActivity: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-                        }
-                    ];
-                    
-                    const booking = mockBookings.find(b => 
-                        b.refnumber === data.refNumber || 
-                        b.refnumber.includes(data.refNumber)
-                    );
-                    
-                    if (booking) {
-                        return {
-                            success: true,
-                            booking: booking
-                        };
-                    } else {
-                        return {
-                            success: false,
-                            error: 'Booking not found'
-                        };
-                    }
-                    
-                case 'markVehicleEntry':
-                    return {
-                        success: true,
-                        entryTime: new Date().toISOString(),
-                        message: 'Vehicle entry recorded'
-                    };
-                    
-                case 'markVehicleExit':
-                    return {
-                        success: true,
-                        exitTime: new Date().toISOString(),
-                        message: 'Vehicle exit recorded'
-                    };
-                    
-                case 'logSecurityActivity':
-                    console.log('Security activity logged:', data);
-                    return { success: true };
-                    
-                default:
-                    return { success: false, error: 'Unknown action' };
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-        }
 
-        // Initialize when page loads
+            const result = await response.json();
+            console.log('Google Apps Script Response:', result);
+            return result;
+        } catch (error) {
+            console.error('Google Apps Script Error:', error);
+            showAlert('⚠️ Could not connect to Google Apps Script. Check your URL.', 'error');
+            throw error;
+        }
+    }
+
+    // Initialize on load
+    if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initialize);
-    </script>
+    } else {
+        initialize();
+    }
+</script>
+
 </body>
 </html>
